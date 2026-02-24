@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { fetchJSON, API } from '../utils/api'
 import ModelSelector from '../components/ModelSelector'
@@ -24,6 +24,7 @@ export default function SettingsPage() {
   const [loading, setLoading] = useState(false)
   const [dirPickerOpen, setDirPickerOpen] = useState(false)
   const [pullState, setPullState] = useState({}) // { [modelId]: { active, status, pct, error } }
+  const pullEsRef = useRef({}) // { [modelId]: EventSource } — for cancel
   const toast = useToast()
 
   useEffect(() => {
@@ -77,9 +78,11 @@ export default function SettingsPage() {
   function handlePull(modelId) {
     setPullState(s => ({ ...s, [modelId]: { active: true, status: '연결 중...', pct: 0, error: null } }))
     const es = new EventSource(`${API.modelsPullStream}?model=${encodeURIComponent(modelId)}`)
+    pullEsRef.current[modelId] = es
     es.onmessage = (e) => {
       if (e.data === '[DONE]') {
         es.close()
+        delete pullEsRef.current[modelId]
         setPullState(s => ({ ...s, [modelId]: { active: false, status: '완료', pct: 100, error: null } }))
         fetchJSON(API.models).then(d => setModels(d?.models || [])).catch(() => {})
         toast(`${modelId} 설치 완료`, 'success')
@@ -89,6 +92,7 @@ export default function SettingsPage() {
         const d = JSON.parse(e.data)
         if (d.error) {
           es.close()
+          delete pullEsRef.current[modelId]
           setPullState(s => ({ ...s, [modelId]: { active: false, status: '오류', pct: 0, error: d.error } }))
           toast(`다운로드 실패: ${d.error}`, 'error')
           return
@@ -102,9 +106,17 @@ export default function SettingsPage() {
     }
     es.onerror = () => {
       es.close()
+      delete pullEsRef.current[modelId]
       setPullState(s => ({ ...s, [modelId]: { active: false, status: '연결 오류', pct: 0, error: '연결이 끊어졌습니다' } }))
       toast('다운로드 연결 오류', 'error')
     }
+  }
+
+  function handleCancelPull(modelId) {
+    const es = pullEsRef.current[modelId]
+    if (es) { es.close(); delete pullEsRef.current[modelId] }
+    setPullState(s => ({ ...s, [modelId]: { active: false, status: '', pct: 0, error: null } }))
+    toast(`${modelId} 다운로드 취소됨`, 'info')
   }
 
   async function handleReloadPipelines() {
@@ -253,8 +265,18 @@ export default function SettingsPage() {
                       )}
                       {ps?.active && (
                         <div className="pull-progress">
-                          <div className="progress-bar" style={{ height: 6, marginBottom: 4 }}>
-                            <div className="progress-fill" style={{ width: `${ps.pct}%`, transition: 'width 0.3s' }} />
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
+                            <div className="progress-bar" style={{ height: 6, flex: 1 }}>
+                              <div className="progress-fill" style={{ width: `${ps.pct}%`, transition: 'width 0.3s' }} />
+                            </div>
+                            <button
+                              className="btn btn-secondary"
+                              style={{ padding: '1px 7px', fontSize: '0.75rem', lineHeight: 1.6, flexShrink: 0 }}
+                              onClick={() => handleCancelPull(m.id)}
+                              title="다운로드 취소"
+                            >
+                              취소
+                            </button>
                           </div>
                           <span style={{ fontSize: '0.75rem', color: 'var(--ink3)' }}>
                             {ps.status}{ps.pct > 0 ? ` ${ps.pct}%` : ''}

@@ -1,4 +1,4 @@
-"""모델 프로파일 정의 (9개 빌트인 모델 + 동적 감지)."""
+"""모델 프로파일 정의 (8개 빌트인 모델 ≤16 GB RAM + 동적 감지)."""
 
 from __future__ import annotations
 
@@ -117,39 +117,6 @@ BUILTIN_PROFILES: dict[str, ModelProfile] = {
         context_len=32768,
         strengths=["균형", "한국어", "추론"],
         best_for=["gianmun_body", "complaint_resp", "meeting_minutes"],
-    ),
-    "qwen3:32b": ModelProfile(
-        id="qwen3:32b",
-        name="Qwen3 32B",
-        family="qwen3",
-        param_size=32,
-        ram_gb=22,
-        supports_thinking=True,
-        context_len=32768,
-        strengths=["고품질", "추론", "계획서", "예산"],
-        best_for=["plan_document", "budget_calc", "docent_plan"],
-    ),
-    "qwen3:30b-a3b": ModelProfile(
-        id="qwen3:30b-a3b",
-        name="Qwen3 30B-A3B (MoE)",
-        family="qwen3",
-        param_size=30,
-        ram_gb=18,
-        supports_thinking=True,
-        context_len=32768,
-        strengths=["MoE효율", "추론", "계획서"],
-        best_for=["plan_document", "docent_plan"],
-    ),
-    "qwen3.5:72b": ModelProfile(
-        id="qwen3.5:72b",
-        name="Qwen3.5 72B",
-        family="qwen3.5",
-        param_size=72,
-        ram_gb=48,
-        supports_thinking=True,
-        context_len=131072,
-        strengths=["최고품질", "추론", "긴문서"],
-        best_for=["docent_plan", "budget_calc", "plan_document"],
     ),
     "exaone3.5:7.8b": ModelProfile(
         id="exaone3.5:7.8b",
