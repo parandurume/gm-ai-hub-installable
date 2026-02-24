@@ -14,6 +14,8 @@ export const API = {
   chat:               `${BASE}/chat`,
   chatStream:         `ws://${location.host}${BASE}/chat/stream`,
   meeting:            `${BASE}/meeting/create`,
+  meetingTranscribe:  `${BASE}/meeting/transcribe`,
+  meetingSttStatus:   `${BASE}/meeting/stt-status`,
   complaintClassify:  `${BASE}/complaint/classify`,
   complaintDraft:     `${BASE}/complaint/draft`,
   regulationSearch:   `${BASE}/regulation/search`,
@@ -25,6 +27,7 @@ export const API = {
   settings:           `${BASE}/settings`,
   models:             `${BASE}/models`,
   modelsRecommend:    `${BASE}/models/recommend`,
+  modelsPullStream:   `${BASE}/models/pull-stream`,
   optimizeStatus:     `${BASE}/optimize/status`,
   optimizeRun:        `${BASE}/optimize/run`,
   optimizeReload:     `${BASE}/optimize/reload`,
@@ -37,6 +40,7 @@ export const API = {
   setupStatus:        `${BASE}/setup/status`,
   setupCheckOllama:   `${BASE}/setup/check-ollama`,
   setupComplete:      `${BASE}/setup/complete`,
+  quit:               `${BASE}/quit`,
 }
 
 export async function fetchJSON(url, options = {}) {

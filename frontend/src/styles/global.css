@@ -11,8 +11,13 @@
   --paper2:  #EDEAE3;
   --ink:     #1C1C22;
   --ink2:    #44444F;
-  --ink3:    #6B6B7D;
+  --ink3:    #5E5E6E;
   --border:  #D8D5CC;
+
+  /* Semantic aliases — keep component code readable */
+  --line:         var(--border);
+  --bg:           var(--paper);
+  --bg-secondary: var(--paper2);
   --white:   #FFFFFF;
 
   --font-sans:  'Noto Sans KR', sans-serif;

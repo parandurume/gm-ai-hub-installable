@@ -189,18 +189,46 @@ export default function PiiPage() {
                 개인정보가 발견되지 않았습니다
               </div>
             )}
-            {findings.map((f, i) => (
-              <div
-                key={i}
-                className={`finding-row${activeIndex === i ? ' active' : ''}`}
-                onClick={() => setActiveIndex(i)}
-              >
-                <span className="finding-type" style={{ color: PII_TYPE_COLORS[f.type] || '#555' }}>
-                  {PII_TYPE_LABELS[f.type] || f.type}
-                </span>
-                <span className="finding-pos">:{f.start}</span>
-              </div>
-            ))}
+            {findings.map((f, i) => {
+              // Build a short context snippet from the original document text
+              const snippet = (() => {
+                if (!documentText) return null
+                const s = f.start ?? 0
+                const e = f.end ?? s + (f.value?.length || 6)
+                const before = documentText.slice(Math.max(0, s - 18), s)
+                const after = documentText.slice(e, e + 18)
+                return { before, masked: f.masked_value || f.value || '***', after }
+              })()
+              return (
+                <div
+                  key={i}
+                  className={`finding-row${activeIndex === i ? ' active' : ''}`}
+                  onClick={() => setActiveIndex(i)}
+                >
+                  <div className="finding-row-top">
+                    <span
+                      className="finding-type-chip"
+                      style={{
+                        background: `${PII_TYPE_COLORS[f.type] || '#555'}22`,
+                        color: PII_TYPE_COLORS[f.type] || '#555',
+                      }}
+                    >
+                      {PII_TYPE_LABELS[f.type] || f.type}
+                    </span>
+                    <span className="finding-pos">위치 {f.start}</span>
+                  </div>
+                  {snippet && (
+                    <div className="finding-context">
+                      <span className="finding-ctx-text">{snippet.before}</span>
+                      <span className="finding-ctx-match" style={{ color: PII_TYPE_COLORS[f.type] || '#c0392b' }}>
+                        {snippet.masked}
+                      </span>
+                      <span className="finding-ctx-text">{snippet.after}</span>
+                    </div>
+                  )}
+                </div>
+              )
+            })}
             {!scanResult && !loading && (
               <div className="preview-empty" style={{ height: 200 }}>
                 <span style={{ fontSize: 36 }}>{'🔒'}</span>

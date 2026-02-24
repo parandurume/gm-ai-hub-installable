@@ -12,29 +12,35 @@ export default function ComplaintPage() {
   const [loading, setLoading] = useState(false)
   const toast = useToast()
 
-  async function handleClassify() {
+  async function handleAnalyzeAndDraft() {
     if (!text.trim()) { toast('민원 내용을 입력하세요', 'warning'); return }
     setLoading(true)
+    setClassification(null)
+    setDraft(null)
     try {
-      const data = await postJSON(API.complaintClassify, { text, model })
-      setClassification(data)
-      toast('분류 완료', 'success')
+      // Run classify first, then draft — both results shown together
+      const [classData, draftData] = await Promise.all([
+        postJSON(API.complaintClassify, { text, model }),
+        postJSON(API.complaintDraft, { text, model }),
+      ])
+      setClassification(classData)
+      setDraft(draftData)
+      toast('분석 및 답변 초안 생성 완료', 'success')
     } catch {
-      toast('분류 실패', 'error')
+      toast('처리 실패', 'error')
     } finally {
       setLoading(false)
     }
   }
 
-  async function handleDraft() {
+  async function handleClassifyOnly() {
     if (!text.trim()) { toast('민원 내용을 입력하세요', 'warning'); return }
     setLoading(true)
     try {
-      const data = await postJSON(API.complaintDraft, { text, model })
-      setDraft(data)
-      toast('답변 초안 생성 완료', 'success')
+      const data = await postJSON(API.complaintClassify, { text, model })
+      setClassification(data)
     } catch {
-      toast('답변 생성 실패', 'error')
+      toast('분류 실패', 'error')
     } finally {
       setLoading(false)
     }
@@ -62,11 +68,11 @@ export default function ComplaintPage() {
           </div>
 
           <div className="form-actions">
-            <button className="btn btn-secondary" onClick={handleClassify} disabled={loading}>
-              {loading ? '처리 중...' : '민원 분류'}
+            <button className="btn btn-primary" onClick={handleAnalyzeAndDraft} disabled={loading}>
+              {loading ? '처리 중...' : 'AI 분석 및 답변 초안 작성'}
             </button>
-            <button className="btn btn-primary" onClick={handleDraft} disabled={loading}>
-              {loading ? '처리 중...' : 'AI 답변 초안'}
+            <button className="btn btn-secondary btn-sm" onClick={handleClassifyOnly} disabled={loading}>
+              분류만
             </button>
           </div>
 
@@ -103,7 +109,7 @@ export default function ComplaintPage() {
             <div className="preview-pane">
               <div className="preview-header">
                 AI 답변 초안
-                {draft.path && <span style={{ fontSize: '0.8rem', color: 'var(--ink3)' }}> - {draft.path}</span>}
+                {draft.path && <span style={{ fontSize: '0.8rem', color: 'var(--ink3)' }}> — {draft.path}</span>}
               </div>
               <div className="preview-body" style={{ whiteSpace: 'pre-wrap' }}>{draft.response || draft.text || JSON.stringify(draft, null, 2)}</div>
             </div>

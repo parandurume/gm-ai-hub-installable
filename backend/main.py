@@ -89,3 +89,7 @@ def start():
             port=settings.APP_PORT,
             reload=settings.APP_DEBUG,
         )
+
+
+if __name__ == "__main__":
+    start()

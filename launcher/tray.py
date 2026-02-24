@@ -79,6 +79,7 @@ class TrayApp:
     def __init__(self):
         self._server_proc: subprocess.Popen | None = None
         self._running = False
+        self._icon = None
 
     def _get_server_command(self) -> list[str]:
         """서버 실행 명령어 결정."""
@@ -145,6 +146,19 @@ class TrayApp:
         """기본 브라우저에서 앱 열기."""
         webbrowser.open(_URL)
 
+    def _monitor_server(self):
+        """서버 프로세스 종료 감지 → 트레이 자동 종료.
+
+        /api/quit 엔드포인트가 서버를 종료하면 트레이 아이콘도 자동으로 닫힌다.
+        """
+        while self._running:
+            if self._server_proc and self._server_proc.poll() is not None:
+                self._running = False
+                if self._icon:
+                    self._icon.stop()
+                return
+            time.sleep(1)
+
     def restart_server(self):
         """서버 재시작."""
         self.stop_server()
@@ -181,12 +195,15 @@ class TrayApp:
         )
 
         icon = pystray.Icon("GM-AI-Hub", icon_image, "GM-AI-Hub", menu)
+        self._icon = icon
 
         # 서버 시작 + 브라우저 열기를 백그라운드에서 실행
         def startup():
             if self.start_server():
                 if self.wait_for_server():
                     self.open_browser()
+                    # 서버 종료 감시 (브라우저 UI의 종료 버튼 대응)
+                    threading.Thread(target=self._monitor_server, daemon=True).start()
                 else:
                     print("서버 시작 대기 시간 초과")
             else:
@@ -197,7 +214,20 @@ class TrayApp:
 
 
 def main():
-    """엔트리 포인트."""
+    """엔트리 포인트.
+
+    이미 실행 중인 인스턴스가 있으면 브라우저만 열고 종료.
+    - 브라우저 탭을 닫은 뒤 재실행 → 브라우저만 다시 열림
+    - 두 번째 아이콘 클릭 → 두 번째 tray·server 인스턴스 방지
+    """
+    try:
+        r = httpx.get(_HEALTH_URL, timeout=1.5)
+        if r.status_code == 200:
+            webbrowser.open(_URL)
+            return
+    except Exception:
+        pass
+
     app = TrayApp()
     app.run()
 

@@ -1,11 +1,9 @@
 import { useState, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
 import { fetchJSON, postJSON, API } from '../utils/api'
 
 const STEPS = ['welcome', 'ollama', 'models', 'info', 'ready']
 
 export default function SetupWizard() {
-  const navigate = useNavigate()
   const [step, setStep] = useState(0)
   const [ollamaStatus, setOllamaStatus] = useState(null)
   const [checking, setChecking] = useState(false)
@@ -43,10 +41,12 @@ export default function SetupWizard() {
     setSaving(true)
     try {
       await postJSON(API.setupComplete, form)
-      navigate('/')
+      // navigate('/') 는 SetupGuard를 재마운트하지 않아
+      // status가 'setup'으로 남아 위저드가 다시 나타나는 버그가 있음.
+      // 전체 페이지 새로고침으로 SetupGuard가 DB를 재확인하게 함.
+      window.location.replace('/')
     } catch {
       alert('설정 저장에 실패했습니다. 다시 시도해주세요.')
-    } finally {
       setSaving(false)
     }
   }

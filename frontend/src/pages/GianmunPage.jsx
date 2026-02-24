@@ -7,6 +7,31 @@ import GuardSummaryBar from '../components/GuardSummaryBar'
 import AnnotatedPreview from '../components/AnnotatedPreview'
 import { useToast } from '../hooks/useToast'
 
+const FALLBACK_TEMPLATES = ['일반기안', '협조전', '보고서', '계획서', '결과보고서', '회의록', '민원답변']
+
+const TEMPLATE_ICONS = {
+  '일반기안': '📄', '협조전': '🤝', '보고서': '📊',
+  '계획서': '📝', '결과보고서': '✅', '회의록': '📋', '민원답변': '📨',
+}
+
+function TemplateCards({ templates, value, onChange }) {
+  return (
+    <div className="template-cards">
+      {templates.map(name => (
+        <button
+          key={name}
+          type="button"
+          className={`template-card ${value === name ? 'active' : ''}`}
+          onClick={() => onChange(value === name ? '' : name)}
+        >
+          <span className="template-card-icon">{TEMPLATE_ICONS[name] || '📄'}</span>
+          <span className="template-card-label">{name}</span>
+        </button>
+      ))}
+    </div>
+  )
+}
+
 export default function GianmunPage() {
   const [templates, setTemplates] = useState([])
   const [form, setForm] = useState({ template: '', subject: '', body_instruction: '', model: null, output_path: '' })
@@ -121,23 +146,11 @@ export default function GianmunPage() {
         <div className="split-left">
           <div className="form-group">
             <label>템플릿 유형</label>
-            <select value={form.template} onChange={e => updateField('template', e.target.value)}>
-              <option value="">선택...</option>
-              {templates.map(t => (
-                <option key={t.name} value={t.name}>{t.name}</option>
-              ))}
-              {templates.length === 0 && (
-                <>
-                  <option value="일반기안">일반기안</option>
-                  <option value="협조전">협조전</option>
-                  <option value="보고서">보고서</option>
-                  <option value="계획서">계획서</option>
-                  <option value="결과보고서">결과보고서</option>
-                  <option value="회의록">회의록</option>
-                  <option value="민원답변">민원답변</option>
-                </>
-              )}
-            </select>
+            <TemplateCards
+              templates={templates.length > 0 ? templates.map(t => t.name) : FALLBACK_TEMPLATES}
+              value={form.template}
+              onChange={v => updateField('template', v)}
+            />
           </div>
 
           <div className="form-group">
@@ -151,12 +164,17 @@ export default function GianmunPage() {
           </div>
 
           <div className="form-group">
-            <label>본문 지시사항 (선택)</label>
+            <label style={{ display: 'flex', justifyContent: 'space-between' }}>
+              <span>본문 지시사항 (선택)</span>
+              <span className={`char-counter ${form.body_instruction.length >= 500 ? 'char-counter-red' : form.body_instruction.length >= 400 ? 'char-counter-amber' : ''}`}>
+                {form.body_instruction.length}/500
+              </span>
+            </label>
             <textarea
               ref={bodyRef}
               rows={6}
               value={form.body_instruction}
-              onChange={e => updateField('body_instruction', e.target.value)}
+              onChange={e => updateField('body_instruction', e.target.value.slice(0, 500))}
               placeholder="AI에게 본문 작성 방향을 알려주세요..."
             />
           </div>

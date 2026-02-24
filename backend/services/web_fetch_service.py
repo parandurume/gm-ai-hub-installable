@@ -1,4 +1,12 @@
-"""웹 페이지 URL 감지 및 콘텐츠 가져오기 서비스 (보안 필터링 포함)."""
+"""웹 페이지 URL 감지 및 콘텐츠 가져오기 서비스 (보안 필터링 포함).
+
+변경 이력 (v2 → v3):
+  - DNS 조회를 asyncio thread-pool로 이전 (이벤트 루프 블로킹 방지)
+  - HTTP/HTTPS 기본 포트 수정 (http→80, https→443)
+  - User-Agent를 일반 브라우저 문자열로 교체 (403 차단 방지)
+  - httpx 내장 리다이렉트 처리 사용 (max_redirects=5, 최종 URL도 검증)
+  - MAX_CHARS_PER_PAGE 8000 → 15000
+"""
 
 from __future__ import annotations
 
@@ -29,34 +37,40 @@ _TITLE_RE = re.compile(r"<title[^>]*>(.*?)</title>", re.DOTALL | re.IGNORECASE)
 
 # ── Limits ───────────────────────────────────────────────────────────
 MAX_URLS = 3
-MAX_CHARS_PER_PAGE = 8000
+MAX_CHARS_PER_PAGE = 15_000         # raised from 8 000
 MAX_RESPONSE_BYTES = 2 * 1024 * 1024  # 2 MB
 FETCH_TIMEOUT = 15
 MAX_REDIRECTS = 5
 
-# ── SSRF: blocked IP ranges ─────────────────────────────────────────
+# ── SSRF: blocked IP ranges ──────────────────────────────────────────
 _BLOCKED_NETWORKS = [
-    ipaddress.ip_network("127.0.0.0/8"),       # loopback
-    ipaddress.ip_network("10.0.0.0/8"),         # private class A
-    ipaddress.ip_network("172.16.0.0/12"),      # private class B
-    ipaddress.ip_network("192.168.0.0/16"),     # private class C
-    ipaddress.ip_network("169.254.0.0/16"),     # link-local
-    ipaddress.ip_network("0.0.0.0/8"),          # "this" network
-    ipaddress.ip_network("100.64.0.0/10"),      # carrier-grade NAT
-    ipaddress.ip_network("198.18.0.0/15"),      # benchmark testing
-    ipaddress.ip_network("240.0.0.0/4"),        # reserved / future
-    ipaddress.ip_network("::1/128"),            # IPv6 loopback
-    ipaddress.ip_network("fc00::/7"),           # IPv6 unique local
-    ipaddress.ip_network("fe80::/10"),          # IPv6 link-local
+    ipaddress.ip_network("127.0.0.0/8"),    # loopback
+    ipaddress.ip_network("10.0.0.0/8"),      # private class A
+    ipaddress.ip_network("172.16.0.0/12"),   # private class B
+    ipaddress.ip_network("192.168.0.0/16"),  # private class C
+    ipaddress.ip_network("169.254.0.0/16"),  # link-local
+    ipaddress.ip_network("0.0.0.0/8"),       # "this" network
+    ipaddress.ip_network("100.64.0.0/10"),   # carrier-grade NAT
+    ipaddress.ip_network("198.18.0.0/15"),   # benchmark testing
+    ipaddress.ip_network("240.0.0.0/4"),     # reserved / future
+    ipaddress.ip_network("::1/128"),         # IPv6 loopback
+    ipaddress.ip_network("fc00::/7"),        # IPv6 unique local
+    ipaddress.ip_network("fe80::/10"),       # IPv6 link-local
 ]
 
 # ── Blocked schemes / ports ──────────────────────────────────────────
 _ALLOWED_SCHEMES = {"http", "https"}
 _BLOCKED_PORTS = {22, 25, 53, 110, 143, 445, 3306, 5432, 6379, 11434, 27017}
 
+# ── User-Agent: use a common browser string so sites don't block us ──
+_USER_AGENT = (
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+    "AppleWebKit/537.36 (KHTML, like Gecko) "
+    "Chrome/124.0.0.0 Safari/537.36"
+)
+
 
 def _is_private_ip(ip_str: str) -> bool:
-    """Check if an IP address falls within blocked (private/reserved) ranges."""
     try:
         addr = ipaddress.ip_address(ip_str)
     except ValueError:
@@ -64,38 +78,46 @@ def _is_private_ip(ip_str: str) -> bool:
     return any(addr in net for net in _BLOCKED_NETWORKS)
 
 
-def _validate_url(url: str) -> str | None:
-    """Validate URL for security. Returns error message or None if safe."""
+async def _validate_url_async(url: str) -> str | None:
+    """Async URL validation — DNS check runs in thread pool.
+
+    Returns an error message if the URL should be blocked, or None if safe.
+    """
     try:
         parsed = urlparse(url)
     except Exception:
         return "잘못된 URL 형식"
 
-    # Scheme check
     if parsed.scheme.lower() not in _ALLOWED_SCHEMES:
         return f"허용되지 않는 프로토콜: {parsed.scheme}"
 
-    # Hostname required
     hostname = parsed.hostname
     if not hostname:
         return "호스트명 없음"
 
-    # Block suspicious hostnames
     if hostname.startswith(".") or ".." in hostname:
         return "잘못된 호스트명"
 
-    # Port check
     port = parsed.port
     if port and port in _BLOCKED_PORTS:
         return f"차단된 포트: {port}"
 
-    # DNS resolution → IP check (prevents DNS rebinding)
+    # Use correct default port per scheme (was always 443 before — bug)
+    default_port = 443 if parsed.scheme.lower() == "https" else 80
+
+    # DNS resolution in thread pool — does NOT block the event loop
+    loop = asyncio.get_event_loop()
     try:
-        addr_infos = socket.getaddrinfo(hostname, port or 443, proto=socket.IPPROTO_TCP)
+        addr_infos: list = await loop.run_in_executor(
+            None,
+            lambda: socket.getaddrinfo(
+                hostname, port or default_port, proto=socket.IPPROTO_TCP
+            ),
+        )
     except socket.gaierror:
         return f"DNS 조회 실패: {hostname}"
 
-    for family, _, _, _, sockaddr in addr_infos:
+    for _family, _type, _proto, _canonname, sockaddr in addr_infos:
         ip_str = sockaddr[0]
         if _is_private_ip(ip_str):
             log.warning(
@@ -130,8 +152,10 @@ def _strip_html(html: str) -> tuple[str, str]:
 
     text = _SCRIPT_STYLE_RE.sub("", html)
     text = _TAG_RE.sub(" ", text)
-    for entity, char in [("&amp;", "&"), ("&lt;", "<"), ("&gt;", ">"),
-                         ("&nbsp;", " "), ("&quot;", '"'), ("&#39;", "'")]:
+    for entity, char in [
+        ("&amp;", "&"), ("&lt;", "<"), ("&gt;", ">"),
+        ("&nbsp;", " "), ("&quot;", '"'), ("&#39;", "'"),
+    ]:
         text = text.replace(entity, char)
     text = _WHITESPACE_RE.sub("\n\n", text.strip())
     return title, text
@@ -147,8 +171,8 @@ async def fetch_page_text(
     """
     error_result = {"url": url, "title": "", "text": ""}
 
-    # ── Security validation ──
-    validation_error = _validate_url(url)
+    # ── Validate initial URL ──────────────────────────────────────────
+    validation_error = await _validate_url_async(url)
     if validation_error:
         log.warning("URL 보안 차단", action="url_blocked", url=url, reason=validation_error)
         return {**error_result, "error": f"보안 차단: {validation_error}"}
@@ -156,50 +180,47 @@ async def fetch_page_text(
     try:
         async with httpx.AsyncClient(
             timeout=FETCH_TIMEOUT,
-            follow_redirects=False,  # handle redirects manually for safety
-            headers={"User-Agent": "GM-AI-Hub/2.0 (Document Assistant)"},
-            max_redirects=0,
+            follow_redirects=True,          # let httpx handle the hop loop
+            max_redirects=MAX_REDIRECTS,    # hard cap
+            headers={"User-Agent": _USER_AGENT},
         ) as client:
-            # Manual redirect loop with validation at each hop
-            current_url = url
-            for _ in range(MAX_REDIRECTS):
-                resp = await client.get(current_url)
+            resp = await client.get(url)
 
-                if resp.is_redirect:
-                    next_url = str(resp.next_request.url) if resp.next_request else None
-                    if not next_url:
-                        return {**error_result, "error": "리다이렉트 대상 없음"}
-                    redirect_error = _validate_url(next_url)
-                    if redirect_error:
-                        log.warning(
-                            "리다이렉트 SSRF 차단",
-                            action="redirect_ssrf_block",
-                            original_url=url,
-                            redirect_url=next_url,
-                        )
-                        return {**error_result, "error": f"보안 차단 (리다이렉트): {redirect_error}"}
-                    current_url = next_url
-                    continue
+            # ── Validate final URL after any redirects ────────────────
+            final_url = str(resp.url)
+            if final_url != url:
+                redirect_error = await _validate_url_async(final_url)
+                if redirect_error:
+                    log.warning(
+                        "리다이렉트 SSRF 차단",
+                        action="redirect_ssrf_block",
+                        original_url=url,
+                        final_url=final_url,
+                    )
+                    return {**error_result, "error": f"보안 차단 (리다이렉트): {redirect_error}"}
 
-                resp.raise_for_status()
+            resp.raise_for_status()
 
-                # Response size check
-                content_length = resp.headers.get("content-length")
-                if content_length and int(content_length) > MAX_RESPONSE_BYTES:
-                    return {**error_result, "error": f"응답 크기 초과 ({int(content_length) // 1024}KB)"}
+            # Response size check
+            content_length = resp.headers.get("content-length")
+            if content_length and int(content_length) > MAX_RESPONSE_BYTES:
+                return {
+                    **error_result,
+                    "error": f"응답 크기 초과 ({int(content_length) // 1024}KB)",
+                }
 
-                content_type = resp.headers.get("content-type", "")
-                if "text/html" in content_type or "text/plain" in content_type:
-                    html = resp.text[:MAX_RESPONSE_BYTES]
-                    title, text = _strip_html(html)
-                    if len(text) > max_chars:
-                        text = text[:max_chars] + "\n... (내용 생략)"
-                    return {"url": url, "title": title, "text": text, "error": None}
+            content_type = resp.headers.get("content-type", "")
+            if "text/html" in content_type or "text/plain" in content_type or "xhtml" in content_type:
+                html = resp.text[:MAX_RESPONSE_BYTES]
+                title, text = _strip_html(html)
+                if len(text) > max_chars:
+                    text = text[:max_chars] + "\n... (내용 생략)"
+                return {"url": final_url, "title": title, "text": text, "error": None}
 
-                return {**error_result, "error": f"지원하지 않는 콘텐츠 유형: {content_type}"}
+            return {**error_result, "error": f"지원하지 않는 콘텐츠 유형: {content_type}"}
 
-            return {**error_result, "error": "리다이렉트 횟수 초과"}
-
+    except httpx.TooManyRedirects:
+        return {**error_result, "error": "리다이렉트 횟수 초과"}
     except httpx.TimeoutException:
         return {**error_result, "error": "시간 초과"}
     except httpx.HTTPStatusError as e:
@@ -212,7 +233,7 @@ async def fetch_all_urls(
     text: str,
     max_urls: int = MAX_URLS,
 ) -> list[dict]:
-    """텍스트 내 URL을 감지하고 병렬로 콘텐츠를 가져온다 (보안 검증 포함)."""
+    """텍스트 내 URL을 감지하고 병렬로 콘텐츠를 가져온다."""
     urls = extract_urls(text)[:max_urls]
     if not urls:
         return []

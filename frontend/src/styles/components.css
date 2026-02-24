@@ -97,8 +97,7 @@
 .chat-msg { max-width: 85%; padding: 10px 14px; border-radius: 12px; font-size: 0.9rem; line-height: 1.5; }
 .chat-msg.user { align-self: flex-end; background: var(--teal); color: var(--white); border-bottom-right-radius: 4px; }
 .chat-msg.ai { align-self: flex-start; background: var(--white); border: 1px solid var(--border); border-bottom-left-radius: 4px; }
-.chat-input-bar { display: flex; gap: 8px; padding: 12px; border-top: 1px solid var(--border); background: var(--white); }
-.chat-input-bar .textarea { min-height: 42px; max-height: 120px; }
+.chat-input-bar { display: flex; gap: 8px; padding: 12px; border-top: 1px solid var(--border); background: var(--white); align-items: flex-end; }
 
 /* ── Thinking 패널 ──────────────────────────────────────── */
 .thinking-panel { background: var(--paper2); border: 1px solid var(--border); border-radius: var(--radius-sm); margin-bottom: 8px; overflow: hidden; }
@@ -200,8 +199,6 @@
 .btn-accent:hover { background: #6d28d9; border-color: #6d28d9; }
 .cursor-blink { animation: blink 1s step-end infinite; }
 @keyframes blink { 50% { opacity: 0; } }
-.chat-input-bar textarea { flex: 1; min-height: 42px; max-height: 240px; resize: none; padding: 10px 14px; border: 1px solid var(--border); border-radius: var(--radius-sm); font-family: var(--font-sans); font-size: 0.9rem; overflow-y: auto; }
-.chat-input-bar textarea:focus { outline: none; border-color: var(--teal); }
 
 /* ── Empty state ─────────────────────────────────────── */
 .chat-empty-state { display: flex; flex-direction: column; align-items: center; justify-content: center; flex: 1; gap: 12px; padding: 40px 20px; color: var(--ink3); }
@@ -535,6 +532,141 @@
 .setup-nav {
   display: flex; gap: 8px; margin-top: 24px;
   padding-top: 20px; border-top: 1px solid var(--paper2);
+}
+
+/* ── 글자 수 카운터 ──────────────────────────────────── */
+.char-counter {
+  font-size: 0.72rem; font-weight: 500;
+  color: var(--ink3); transition: color 0.15s;
+}
+.char-counter-amber { color: var(--amber); }
+.char-counter-red   { color: var(--red); font-weight: 700; }
+
+/* ── 채팅 입력 래퍼 (텍스트 + 카운터) ────────────────── */
+.chat-input-wrap { flex: 1; position: relative; display: flex; flex-direction: column; }
+.chat-input-wrap textarea { flex: 1; min-height: 42px; max-height: 240px; resize: none; padding: 10px 14px; border: 1px solid var(--border); border-radius: var(--radius-sm); font-family: var(--font-sans); font-size: 0.9rem; overflow-y: auto; }
+.chat-input-wrap textarea:focus { outline: none; border-color: var(--teal); box-shadow: 0 0 0 3px rgba(0,122,94,0.12); }
+.chat-char-counter { align-self: flex-end; font-size: 0.7rem; color: var(--ink3); padding: 2px 2px 0; }
+.chat-char-counter.char-counter-amber { color: var(--amber); }
+.chat-char-counter.char-counter-red   { color: var(--red); font-weight: 700; }
+
+/* ── 대시보드 v3 ──────────────────────────────────────── */
+.status-bar {
+  display: flex; align-items: center; gap: 12px;
+  padding: 10px 16px; background: var(--white);
+  border: 1px solid var(--border); border-radius: var(--radius);
+  margin-bottom: 20px; font-size: 0.82rem; flex-wrap: wrap;
+}
+.status-bar-item { display: flex; align-items: center; gap: 6px; color: var(--ink2); }
+.status-bar-sep { width: 1px; height: 16px; background: var(--border); }
+.status-dot-sm {
+  width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0;
+}
+.status-dot-sm.ok   { background: #059669; }
+.status-dot-sm.err  { background: var(--red); }
+.status-dot-sm.warn { background: var(--amber); }
+.status-meta { color: var(--ink3); font-size: 0.75rem; }
+
+.dashboard-primary-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 16px; margin-bottom: 20px;
+}
+.dashboard-action-card {
+  display: flex; align-items: center; gap: 14px;
+  padding: 18px 20px;
+  background: var(--white); border: 1px solid var(--border);
+  border-radius: var(--radius); box-shadow: var(--shadow-sm);
+  cursor: pointer; transition: all 0.15s;
+  text-decoration: none; color: inherit;
+}
+.dashboard-action-card:hover {
+  border-color: var(--teal); box-shadow: 0 4px 16px rgba(0,122,94,0.12);
+  transform: translateY(-1px);
+}
+.dac-icon { font-size: 1.8rem; flex-shrink: 0; }
+.dac-body { flex: 1; min-width: 0; }
+.dac-title { font-size: 0.95rem; font-weight: 700; color: var(--navy); margin-bottom: 2px; }
+.dac-desc  { font-size: 0.78rem; color: var(--ink3); line-height: 1.4; }
+.dac-arrow { font-size: 1.4rem; color: var(--ink3); margin-left: 4px; }
+.dashboard-action-card:hover .dac-arrow { color: var(--teal); }
+
+.dashboard-secondary-grid {
+  display: flex; gap: 8px; flex-wrap: wrap;
+}
+.dashboard-quick-link {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 8px 14px; border: 1px solid var(--border);
+  border-radius: var(--radius-sm); background: var(--white);
+  font-size: 0.82rem; color: var(--ink2);
+  text-decoration: none; transition: all 0.15s;
+}
+.dashboard-quick-link:hover { border-color: var(--teal); color: var(--teal); background: rgba(0,122,94,0.04); }
+
+/* ── PII finding 컨텍스트 스니펫 ──────────────────────── */
+.finding-row { display: flex; flex-direction: column; gap: 4px; padding: 8px 10px; }
+.finding-row-top { display: flex; align-items: center; justify-content: space-between; gap: 6px; }
+.finding-type-chip {
+  display: inline-flex; padding: 2px 8px; border-radius: 99px;
+  font-size: 0.7rem; font-weight: 700;
+}
+.finding-context {
+  font-size: 0.75rem; font-family: var(--font-mono);
+  color: var(--ink3); white-space: nowrap; overflow: hidden;
+  text-overflow: ellipsis; line-height: 1.4;
+}
+.finding-ctx-text { color: var(--ink3); }
+.finding-ctx-match { font-weight: 700; }
+
+/* ── 기안문 템플릿 카드 ──────────────────────────────── */
+.template-cards {
+  display: flex; gap: 8px; flex-wrap: wrap;
+}
+.template-card {
+  display: flex; flex-direction: column; align-items: center;
+  gap: 4px; padding: 10px 14px; min-width: 72px;
+  border: 2px solid var(--border); border-radius: var(--radius-sm);
+  background: var(--white); cursor: pointer;
+  font-family: var(--font-sans); font-size: 0.75rem;
+  color: var(--ink2); transition: all 0.15s;
+}
+.template-card:hover { border-color: var(--teal); color: var(--teal); }
+.template-card:focus-visible { outline: 2px solid var(--teal); outline-offset: 2px; }
+.template-card.active {
+  border-color: var(--teal); background: rgba(0,122,94,0.07);
+  color: var(--teal); font-weight: 600;
+}
+.template-card-icon { font-size: 1.3rem; }
+.template-card-label { text-align: center; line-height: 1.2; }
+
+/* ── 참석자 태그 입력 ──────────────────────────────── */
+.attendees-tag-input {
+  display: flex; flex-wrap: wrap; gap: 6px; align-items: center;
+  min-height: 38px; padding: 5px 10px;
+  border: 1px solid var(--border); border-radius: var(--radius-sm);
+  background: var(--white); cursor: text;
+  transition: border-color 0.15s;
+}
+.attendees-tag-input:focus-within {
+  border-color: var(--teal); box-shadow: 0 0 0 3px rgba(0,122,94,0.12);
+}
+.attendee-tag {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 2px 8px; border-radius: 99px;
+  background: rgba(0,122,94,0.1); color: var(--teal);
+  font-size: 0.8rem; font-weight: 600; white-space: nowrap;
+}
+.attendee-tag-remove {
+  background: none; border: none; cursor: pointer;
+  font-size: 0.9rem; line-height: 1; color: var(--teal);
+  padding: 0; opacity: 0.7;
+}
+.attendee-tag-remove:hover { opacity: 1; }
+.attendees-tag-field {
+  flex: 1; min-width: 120px; border: none; outline: none;
+  font-family: var(--font-sans); font-size: 0.9rem;
+  background: transparent; color: var(--ink);
+  padding: 2px 0;
 }
 
 /* ── 반응형 오버라이드 (≤1024px) ──────────────────────── */

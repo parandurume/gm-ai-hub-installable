@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "gm-ai-hub-app"
-version = "2.0.0"
+version = "3.0.1"
 description = "GM-AI-Hub Desktop - 광명시 AI 통합 공문서 시스템 (설치형)"
 requires-python = ">=3.11"
 dependencies = [
@@ -28,11 +28,13 @@ dependencies = [
     # Desktop app dependencies
     "pystray>=0.19",
     "Pillow>=10.0",
+    # STT — 로컬 음성 인식 (회의록)
+    "faster-whisper>=1.0",
+    "av>=12.0",       # PyAV: ffmpeg 번들 — webm/mp3/m4a 오디오 디코딩용
 ]
 
 [project.optional-dependencies]
 hwp = ["pyhwp>=0.1b12"]
-whisper = ["openai-whisper"]
 embed = ["sentence-transformers"]
 dev = ["pytest", "pytest-asyncio", "ruff", "httpx", "pyinstaller>=6.0"]
 

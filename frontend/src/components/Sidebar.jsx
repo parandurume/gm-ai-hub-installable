@@ -1,18 +1,31 @@
 import { memo } from 'react'
 import { NavLink } from 'react-router-dom'
 
-const NAV_ITEMS = [
-  { to: '/',           icon: '\uD83C\uDFE0', label: '\uB300\uC2DC\uBCF4\uB4DC' },
-  { to: '/files',      icon: '\uD83D\uDCC2', label: '\uBB38\uC11C \uAD00\uB9AC' },
-  { to: '/gianmun',    icon: '\u270D\uFE0F',  label: '\uAE30\uC548\uBB38 \uC791\uC131' },
-  { to: '/search',     icon: '\uD83D\uDD0D', label: '\uBB38\uC11C \uAC80\uC0C9' },
-  { to: '/chat',       icon: '\uD83E\uDD16', label: 'AI \uCC44\uD305' },
-  { to: '/meeting',    icon: '\uD83D\uDCCB', label: '\uD68C\uC758\uB85D' },
-  { to: '/complaint',  icon: '\uD83D\uDCE8', label: '\uBBFC\uC6D0 \uB2F5\uBCC0' },
-  { to: '/regulation', icon: '\u2696\uFE0F',  label: '\uBC95\uB839 \uAC80\uC0C9' },
-  { to: '/pii',        icon: '\uD83D\uDD12', label: 'PII \uAD00\uB9AC' },
-  { to: '/diff',       icon: '\uD83D\uDD04', label: '\uBB38\uC11C \uBE44\uAD50' },
-  { to: '/settings',   icon: '\u2699\uFE0F',  label: '\uC124\uC815' },
+const NAV_GROUPS = [
+  {
+    label: '문서 작성',
+    items: [
+      { to: '/gianmun',   icon: '✍️',  label: '기안문 작성' },
+      { to: '/meeting',   icon: '📋', label: '회의록' },
+      { to: '/complaint', icon: '📨', label: '민원 답변' },
+    ],
+  },
+  {
+    label: '검색 / 분석',
+    items: [
+      { to: '/search',     icon: '🔍', label: '문서 검색' },
+      { to: '/regulation', icon: '⚖️',  label: '법령 검색' },
+      { to: '/pii',        icon: '🔒', label: 'PII 관리' },
+      { to: '/diff',       icon: '🔄', label: '문서 비교' },
+    ],
+  },
+  {
+    label: '보조 도구',
+    items: [
+      { to: '/chat',  icon: '🤖', label: 'AI 채팅' },
+      { to: '/files', icon: '📂', label: '문서 관리' },
+    ],
+  },
 ]
 
 /* rerender-memo: Sidebar is static; memo avoids re-renders from parent. */
@@ -23,15 +36,33 @@ export default memo(function Sidebar({ open, onClose }) {
         <h1>GM-AI-Hub</h1>
         <span>광명시 AI 공문서 시스템</span>
       </div>
+
+      {/* Dashboard always first, ungrouped */}
+      <NavLink to="/" end className="sidebar-home-link" onClick={onClose}>
+        <span className="nav-icon">🏠</span>
+        대시보드
+      </NavLink>
+
       <div className="sidebar-nav">
-        {NAV_ITEMS.map(item => (
-          <NavLink key={item.to} to={item.to} end={item.to === '/'} onClick={onClose}>
-            <span className="nav-icon">{item.icon}</span>
-            {item.label}
-          </NavLink>
+        {NAV_GROUPS.map(group => (
+          <div key={group.label} className="nav-group">
+            <div className="nav-group-label">{group.label}</div>
+            {group.items.map(item => (
+              <NavLink key={item.to} to={item.to} onClick={onClose}>
+                <span className="nav-icon">{item.icon}</span>
+                {item.label}
+              </NavLink>
+            ))}
+          </div>
         ))}
       </div>
-      <div className="sidebar-footer">v2.0.0</div>
+
+      <NavLink to="/settings" className="sidebar-settings-link" onClick={onClose}>
+        <span className="nav-icon">⚙️</span>
+        설정
+      </NavLink>
+
+      <div className="sidebar-footer">v3.0.0</div>
     </nav>
   )
 })

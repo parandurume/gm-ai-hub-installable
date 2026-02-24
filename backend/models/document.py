@@ -62,13 +62,16 @@ class MeetingRequest(BaseModel):
     """회의록 생성 요청."""
 
     title: str
-    meeting_date: str
+    meeting_date: str = Field("", alias="date", serialization_alias="meeting_date")
     attendees: str
     content: str
+    model: str | None = None
     location: str = ""
     decisions: str = ""
     action_items: str = ""
     output_path: str | None = None
+
+    model_config = {"populate_by_name": True}
 
 
 class ComplaintRequest(BaseModel):

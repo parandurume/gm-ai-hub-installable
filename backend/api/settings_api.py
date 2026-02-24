@@ -23,8 +23,10 @@ async def get_settings():
     return {
         "environment": settings.environment,
         "working_dir": str(settings.WORKING_DIR),
-        "ollama_url": settings.OLLAMA_BASE_URL,
-        "ollama_model": settings.OLLAMA_MODEL,
+        "ollama_url": saved.get("ollama_url", settings.OLLAMA_BASE_URL),
+        "ollama_model": saved.get("ollama_model", settings.OLLAMA_MODEL),
+        "department_name": saved.get("department_name", ""),
+        "officer_name": saved.get("officer_name", ""),
         "watch_paths": settings.watch_paths_list,
         "pii_scan_on_export": settings.PII_SCAN_ON_EXPORT,
         "saved": saved,

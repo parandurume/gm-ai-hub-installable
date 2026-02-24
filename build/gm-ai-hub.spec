@@ -11,6 +11,29 @@ from pathlib import Path
 
 block_cipher = None
 
+# ── STT: ctranslate2 + PyAV 네이티브 라이브러리 수집 ───────────────
+# faster-whisper → ctranslate2 (C++ DLL),  av → PyAV (ffmpeg DLL)
+# PyInstaller 정적 분석으로 감지되지 않으므로 명시적으로 포함
+from PyInstaller.utils.hooks import collect_dynamic_libs, collect_data_files  # noqa: E402
+
+_extra_binaries = []
+_extra_datas = []
+
+try:
+    _extra_binaries += collect_dynamic_libs("ctranslate2")
+except Exception:
+    pass
+
+try:
+    _extra_datas += collect_data_files("ctranslate2")
+except Exception:
+    pass
+
+try:
+    _extra_binaries += collect_dynamic_libs("av")
+except Exception:
+    pass
+
 PROJECT_ROOT = Path(SPECPATH).parent
 BACKEND_DIR = PROJECT_ROOT / "backend"
 FRONTEND_DIST = PROJECT_ROOT / "frontend" / "dist"
@@ -117,6 +140,19 @@ hidden_imports = [
     "backend.ai.optimization.auto_dataset",
     "backend.ai.optimization.metrics",
     "backend.ai.optimization.miprov2_runner",
+    # STT (faster-whisper) — 함수 내부에서 lazy import되므로 명시 필요
+    "backend.services.stt_service",
+    "faster_whisper",
+    "faster_whisper.audio",
+    "faster_whisper.feature_extractor",
+    "faster_whisper.tokenizer",
+    "faster_whisper.transcribe",
+    "faster_whisper.utils",
+    "ctranslate2",
+    "tokenizers",
+    "huggingface_hub",
+    "huggingface_hub.utils",
+    "av",
 ]
 
 # ── 제외 모듈 (번들 크기 축소) ──────────────────────────────────────
@@ -124,7 +160,7 @@ excludes = [
     "tkinter",
     "matplotlib",
     "scipy",
-    "numpy.testing",
+    # numpy 제외하지 않음 — ctranslate2 / faster-whisper 가 numpy 를 사용함
     "test",
     "unittest",
     "xmlrpc",
@@ -135,8 +171,8 @@ excludes = [
 server_a = Analysis(
     [str(PROJECT_ROOT / "backend" / "main.py")],
     pathex=[str(PROJECT_ROOT)],
-    binaries=[],
-    datas=datas,
+    binaries=_extra_binaries,
+    datas=datas + _extra_datas,
     hiddenimports=hidden_imports,
     hookspath=[str(PROJECT_ROOT / "build" / "hooks")],
     hooksconfig={},
@@ -168,8 +204,8 @@ server_exe = EXE(
 tray_a = Analysis(
     [str(PROJECT_ROOT / "launcher" / "tray.py")],
     pathex=[str(PROJECT_ROOT)],
-    binaries=[],
-    datas=datas,
+    binaries=_extra_binaries,
+    datas=datas + _extra_datas,
     hiddenimports=hidden_imports + [
         "pystray",
         "pystray._win32",

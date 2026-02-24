@@ -1,12 +1,14 @@
-"""모델 관리 API — /api/models (v1.1)."""
+"""모델 관리 API — /api/models (v1.2)."""
 
 from __future__ import annotations
 
 import asyncio
+import json
 
 import httpx
 import structlog
 from fastapi import APIRouter
+from fastapi.responses import StreamingResponse
 
 from backend.ai.model_profiles import BUILTIN_PROFILES
 from backend.ai.model_registry import ENVIRONMENT_DEFAULTS, ModelRegistry
@@ -51,19 +53,37 @@ async def recommend_model(task: str, env: str | None = None):
     }
 
 
-@router.post("/pull")
-async def pull_model(model: str):
-    """ollama pull 실행."""
-    log.info("모델 풀 요청", model=model)
-    try:
-        async with httpx.AsyncClient(timeout=600) as c:
-            r = await c.post(
-                f"{settings.OLLAMA_BASE_URL}/api/pull",
-                json={"name": model},
-            )
-            return {"success": True, "model": model, "response": r.text[:500]}
-    except Exception as e:
-        return {"success": False, "model": model, "error": str(e)}
+@router.get("/pull-stream")
+async def pull_model_stream(model: str):
+    """ollama pull 스트리밍 진행률 SSE.
+
+    Ollama의 /api/pull은 줄바꿈 구분 JSON 진행률 청크를 반환한다.
+    이를 Server-Sent Events(SSE)로 그대로 포워딩한다.
+    각 이벤트 형식: {"status":"...", "completed":N, "total":N}
+    완료 시: data: [DONE]
+    """
+    log.info("모델 풀 스트림 요청", model=model)
+
+    async def event_stream():
+        try:
+            async with httpx.AsyncClient(timeout=600) as c:
+                async with c.stream(
+                    "POST",
+                    f"{settings.OLLAMA_BASE_URL}/api/pull",
+                    json={"name": model},
+                ) as r:
+                    async for line in r.aiter_lines():
+                        if line.strip():
+                            yield f"data: {line}\n\n"
+        except Exception as e:
+            yield f"data: {json.dumps({'error': str(e)})}\n\n"
+        yield "data: [DONE]\n\n"
+
+    return StreamingResponse(
+        event_stream(),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+    )
 
 
 @router.get("/usage")

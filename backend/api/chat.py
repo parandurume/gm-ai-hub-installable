@@ -15,6 +15,7 @@ from pydantic import BaseModel
 from backend.ai.client import GptOssClient
 from backend.ai.model_registry import ModelRegistry
 from backend.config import settings
+from backend.db.database import get_db
 from backend.models.document import ChatMessage
 from backend.services.web_fetch_service import (
     build_augmented_prompt,
@@ -44,6 +45,32 @@ _client = GptOssClient(settings.OLLAMA_BASE_URL, settings.OLLAMA_MODEL)
 _registry = ModelRegistry(settings.OLLAMA_BASE_URL)
 
 
+async def _load_user_context() -> str:
+    """DB에서 부서명·담당자명을 읽어 시스템 프롬프트에 추가할 컨텍스트 반환."""
+    try:
+        async with get_db() as db:
+            async with db.execute(
+                "SELECT key, value FROM settings WHERE key IN ('department_name', 'officer_name')"
+            ) as cursor:
+                rows = {row["key"]: row["value"] async for row in cursor}
+        dept = rows.get("department_name", "").strip()
+        officer = rows.get("officer_name", "").strip()
+        if not dept and not officer:
+            return ""
+        parts = []
+        if dept:
+            parts.append(f"- 부서: {dept}")
+        if officer:
+            parts.append(f"- 담당자: {officer}")
+        return (
+            "\n\n[사용자 정보]\n"
+            + "\n".join(parts)
+            + "\n문서 작성 시 위 부서명·담당자명을 그대로 사용하세요. 임의로 변경하거나 대체 이름을 만들지 마세요.\n"
+        )
+    except Exception:
+        return ""
+
+
 @router.post("")
 async def chat(msg: ChatMessage):
     """단일 메시지 (JSON 응답)."""
@@ -54,7 +81,8 @@ async def chat(msg: ChatMessage):
         user_override=msg.model, reasoning=msg.reasoning,
     )
     messages = [*msg.context, {"role": "user", "content": msg.content}]
-    result = await _client.chat(messages=messages, task=task, model=resolved_model)
+    user_ctx = await _load_user_context()
+    result = await _client.chat(messages=messages, task=task, model=resolved_model, system_extra=user_ctx)
     # RULE-07: content 로그 금지
     log.info("채팅 응답", action="chat", model=result["model"], success=True)
     return {"content": result["content"], "thinking": result["thinking"], "model": result["model"]}
@@ -102,7 +130,8 @@ async def chat_stream(ws: WebSocket):
                 reasoning=reasoning,
             )
 
-            system_extra = DEEP_MODE_PROMPT if deep_mode else ""
+            user_ctx = await _load_user_context()
+            system_extra = (DEEP_MODE_PROMPT if deep_mode else "") + user_ctx
 
             try:
                 full = ""

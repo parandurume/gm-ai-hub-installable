@@ -11,11 +11,13 @@
   2. pytest tests/ -v (전체 테스트)
   3. pyinstaller build/gm-ai-hub.spec --clean (동결)
   4. ISCC installer/gm-ai-hub.iss (인스톨러 생성)
+     - Inno Setup이 없으면 winget으로 자동 설치 후 진행
 """
 
 from __future__ import annotations
 
 import argparse
+import os
 import shutil
 import subprocess
 import sys
@@ -25,6 +27,14 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 FRONTEND_DIR = PROJECT_ROOT / "frontend"
 SPEC_FILE = PROJECT_ROOT / "build" / "gm-ai-hub.spec"
 ISS_FILE = PROJECT_ROOT / "installer" / "gm-ai-hub.iss"
+
+_ISCC_CANDIDATES = [
+    # system-wide (admin install)
+    Path(r"C:\Program Files (x86)\Inno Setup 6\ISCC.exe"),
+    Path(r"C:\Program Files\Inno Setup 6\ISCC.exe"),
+    # per-user (winget default, no admin required)
+    Path(os.environ.get("LOCALAPPDATA", "")) / "Programs" / "Inno Setup 6" / "ISCC.exe",
+]
 
 
 def run(
@@ -39,6 +49,75 @@ def run(
         print(f"\n  실패! (exit code {result.returncode})")
         sys.exit(result.returncode)
     return result.returncode
+
+
+def _find_iscc() -> str | None:
+    """설치된 ISCC.exe 경로를 반환. 없으면 None."""
+    for p in _ISCC_CANDIDATES:
+        if p.exists():
+            return str(p)
+
+    found = shutil.which("ISCC")
+    if found:
+        return found
+
+    # 레지스트리에서 설치 경로 탐색 (winget/수동 설치 위치 무관하게 동작)
+    try:
+        import winreg
+        for hive in (winreg.HKEY_LOCAL_MACHINE, winreg.HKEY_CURRENT_USER):
+            for base in (
+                r"SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall",
+                r"SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall",
+            ):
+                try:
+                    key = winreg.OpenKey(hive, base)
+                    i = 0
+                    while True:
+                        try:
+                            sub = winreg.EnumKey(key, i)
+                            subkey = winreg.OpenKey(key, sub)
+                            try:
+                                name = winreg.QueryValueEx(subkey, "DisplayName")[0]
+                                if "Inno Setup" in str(name):
+                                    loc = winreg.QueryValueEx(subkey, "InstallLocation")[0]
+                                    iscc = Path(loc) / "ISCC.exe"
+                                    if iscc.exists():
+                                        return str(iscc)
+                            except FileNotFoundError:
+                                pass
+                            i += 1
+                        except OSError:
+                            break
+                except OSError:
+                    continue
+    except ImportError:
+        pass
+
+    return None
+
+
+def _install_inno_setup() -> None:
+    """winget으로 Inno Setup 6을 자동 설치한다."""
+    print("  Inno Setup을 찾을 수 없습니다. winget으로 자동 설치합니다...")
+    winget = shutil.which("winget")
+    if not winget:
+        print("  winget을 찾을 수 없습니다.")
+        print("  Inno Setup을 수동 설치하세요: https://jrsoftware.org/isinfo.php")
+        sys.exit(1)
+
+    result = subprocess.run(
+        [
+            winget, "install",
+            "--id", "JRSoftware.InnoSetup",
+            "--silent",
+            "--accept-package-agreements",
+            "--accept-source-agreements",
+        ],
+    )
+    if result.returncode != 0:
+        print("  winget 설치 실패. 수동으로 설치하세요: https://jrsoftware.org/isinfo.php")
+        sys.exit(1)
+    print("  Inno Setup 설치 완료.")
 
 
 def step_frontend():
@@ -65,12 +144,44 @@ def step_tests():
     run([sys.executable, "-m", "pytest", "tests/", "-v"], cwd=PROJECT_ROOT)
 
 
+def _kill_running_app() -> None:
+    """빌드 전 실행 중인 GM-AI-Hub 프로세스를 종료한다.
+
+    dist/ 폴더는 shutil.rmtree로 삭제되는데, Windows는 실행 중인 EXE를
+    잠그기 때문에 앱이 켜진 상태에서 빌드하면 PermissionError가 발생한다.
+    """
+    targets = {"GM-AI-Hub.exe", "gm-hub-server.exe"}
+    killed = []
+    try:
+        result = subprocess.run(
+            ["tasklist", "/FO", "CSV", "/NH"],
+            capture_output=True, text=True, encoding="utf-8", errors="replace",
+        )
+        for line in result.stdout.splitlines():
+            # CSV 형식: "프로세스명","PID",...
+            parts = line.strip().strip('"').split('","')
+            if parts and parts[0] in targets:
+                pid = parts[1] if len(parts) > 1 else ""
+                subprocess.run(["taskkill", "/F", "/PID", pid], capture_output=True)
+                killed.append(parts[0])
+    except Exception:
+        pass
+
+    if killed:
+        print(f"  실행 중인 앱 종료: {', '.join(killed)}")
+        import time
+        time.sleep(1)  # 프로세스 종료 대기
+
+
 def step_pyinstaller():
     """3. PyInstaller 동결."""
     print("\n[3/4] PyInstaller 빌드")
     if not SPEC_FILE.exists():
         print(f"  spec 파일 없음: {SPEC_FILE}")
         sys.exit(1)
+
+    # 실행 중인 앱 종료 (Windows EXE 잠금 방지)
+    _kill_running_app()
 
     # 이전 빌드 정리
     dist_dir = PROJECT_ROOT / "dist"
@@ -100,35 +211,36 @@ def step_pyinstaller():
 
 
 def step_installer():
-    """4. Inno Setup 인스톨러 생성."""
+    """4. Inno Setup 인스톨러 생성.
+
+    ISCC.exe가 없으면 winget으로 자동 설치하고 진행한다.
+    설치 후 PATH에 반영되지 않을 수 있으므로 고정 경로를 다시 확인한다.
+    """
     print("\n[4/4] Inno Setup 인스톨러")
     if not ISS_FILE.exists():
         print(f"  iss 파일 없음: {ISS_FILE}")
         sys.exit(1)
 
-    # ISCC 경로 탐색
-    iscc_paths = [
-        Path(r"C:\Program Files (x86)\Inno Setup 6\ISCC.exe"),
-        Path(r"C:\Program Files\Inno Setup 6\ISCC.exe"),
-    ]
-    iscc = None
-    for p in iscc_paths:
-        if p.exists():
-            iscc = str(p)
-            break
+    iscc = _find_iscc()
+    if not iscc:
+        _install_inno_setup()
+        # winget 설치 후 PATH 갱신 없이 고정 경로 재탐색
+        iscc = _find_iscc()
 
     if not iscc:
-        # PATH에서 찾기
-        iscc = shutil.which("ISCC")
-
-    if not iscc:
-        print("  Inno Setup (ISCC.exe) 를 찾을 수 없습니다.")
-        print("  https://jrsoftware.org/isinfo.php 에서 설치하세요.")
-        print("  인스톨러 생성을 건너뜁니다.")
-        return
+        print("  Inno Setup 설치 후에도 ISCC.exe를 찾을 수 없습니다.")
+        print("  터미널을 재시작한 뒤 다시 시도하거나, 직접 실행하세요:")
+        print(f'    ISCC "{ISS_FILE}"')
+        sys.exit(1)
 
     run([iscc, str(ISS_FILE)], cwd=PROJECT_ROOT / "installer", shell=True)
-    print("  인스톨러 생성 완료!")
+
+    output_dir = PROJECT_ROOT / "installer" / "Output"
+    installers = list(output_dir.glob("*.exe")) if output_dir.exists() else []
+    if not installers:
+        print("  인스톨러 파일을 찾을 수 없습니다!")
+        sys.exit(1)
+    print(f"  인스톨러 생성 완료: {installers[0]}")
 
 
 def main():

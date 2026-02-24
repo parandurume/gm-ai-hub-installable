@@ -4,7 +4,11 @@ import { API } from '../utils/api'
 import { useWebSocket } from '../hooks/useWebSocket'
 import ModelSelector from '../components/ModelSelector'
 import ThinkingPanel from '../components/ThinkingPanel'
+import ConfirmModal from '../components/ConfirmModal'
 import { useToast } from '../hooks/useToast'
+
+const REASONING_LABELS = { low: '빠른 답변', medium: '균형', high: '깊은 분석' }
+const MAX_INPUT = 2000
 
 const EXAMPLE_PROMPTS = [
   '기안문 초안 작성 방법을 알려줘',
@@ -19,6 +23,7 @@ export default function ChatPage() {
   const [model, setModel] = useState(null)
   const [reasoning, setReasoning] = useState('medium')
   const [deepMode, setDeepMode] = useState(false)
+  const [clearConfirm, setClearConfirm] = useState(false)
   const toast = useToast()
   const { text, thinking, fetchedUrls, isStreaming, sendMessage, stop } = useWebSocket(
     API.chatStream,
@@ -84,7 +89,7 @@ export default function ChatPage() {
   }
 
   function handleTextareaChange(e) {
-    setInput(e.target.value)
+    setInput(e.target.value.slice(0, MAX_INPUT))
     e.target.style.height = 'auto'
     e.target.style.height = e.target.scrollHeight + 'px'
   }
@@ -121,12 +126,21 @@ export default function ChatPage() {
 
   function handleClear() {
     if (isStreaming) return
-    if (!window.confirm('대화 내용이 모두 삭제됩니다. 계속하시겠습니까?')) return
-    setMessages([])
+    setClearConfirm(true)
   }
 
   return (
     <div className="page-chat">
+      <ConfirmModal
+        open={clearConfirm}
+        title="대화 초기화"
+        message="대화 내용이 모두 삭제됩니다. 계속하시겠습니까?"
+        confirmLabel="초기화"
+        danger
+        onConfirm={() => { setMessages([]); setClearConfirm(false) }}
+        onCancel={() => setClearConfirm(false)}
+      />
+
       <div className="page-header">
         <h2>AI 채팅</h2>
         <div className="page-actions">
@@ -149,7 +163,7 @@ export default function ChatPage() {
                 className={`btn btn-sm ${reasoning === level ? 'btn-primary' : 'btn-secondary'}`}
                 onClick={() => setReasoning(level)}
               >
-                {level === 'low' ? '간결' : level === 'medium' ? '보통' : '상세'}
+                {REASONING_LABELS[level]}
               </button>
             ))}
           </div>
@@ -238,15 +252,20 @@ export default function ChatPage() {
       </div>
 
       <div className="chat-input-bar">
-        <textarea
-          ref={textareaRef}
-          rows={1}
-          value={input}
-          onChange={handleTextareaChange}
-          onKeyDown={handleKeyDown}
-          placeholder="메시지를 입력하세요... (Enter로 전송, Shift+Enter로 줄바꿈)"
-          disabled={isStreaming}
-        />
+        <div className="chat-input-wrap">
+          <textarea
+            ref={textareaRef}
+            rows={1}
+            value={input}
+            onChange={handleTextareaChange}
+            onKeyDown={handleKeyDown}
+            placeholder="메시지를 입력하세요... (Enter로 전송, Shift+Enter로 줄바꿈)"
+            disabled={isStreaming}
+          />
+          <span className={`chat-char-counter ${input.length >= MAX_INPUT ? 'char-counter-red' : input.length >= MAX_INPUT * 0.8 ? 'char-counter-amber' : ''}`}>
+            {input.length}/{MAX_INPUT}
+          </span>
+        </div>
         {isStreaming ? (
           <button className="btn btn-danger" onClick={stop}>중지</button>
         ) : (

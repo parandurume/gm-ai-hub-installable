@@ -3,7 +3,15 @@ import { useSearchParams } from 'react-router-dom'
 import { fetchJSON, API } from '../utils/api'
 import ModelSelector from '../components/ModelSelector'
 import SampleManager from '../components/SampleManager'
+import FolderPicker from '../components/FolderPicker'
 import { useToast } from '../hooks/useToast'
+
+const PIPELINES = [
+  { id: 'gianmun',   label: '기안문 최적화' },
+  { id: 'docent',    label: '도슨트 최적화' },
+  { id: 'complaint', label: '민원 최적화' },
+  { id: 'meeting',   label: '회의록 최적화' },
+]
 
 export default function SettingsPage() {
   const [searchParams, setSearchParams] = useSearchParams()
@@ -14,6 +22,8 @@ export default function SettingsPage() {
   const [optStatus, setOptStatus] = useState(null)
   const [optProgress, setOptProgress] = useState(null)
   const [loading, setLoading] = useState(false)
+  const [dirPickerOpen, setDirPickerOpen] = useState(false)
+  const [pullState, setPullState] = useState({}) // { [modelId]: { active, status, pct, error } }
   const toast = useToast()
 
   useEffect(() => {
@@ -64,6 +74,39 @@ export default function SettingsPage() {
     }
   }
 
+  function handlePull(modelId) {
+    setPullState(s => ({ ...s, [modelId]: { active: true, status: '연결 중...', pct: 0, error: null } }))
+    const es = new EventSource(`${API.modelsPullStream}?model=${encodeURIComponent(modelId)}`)
+    es.onmessage = (e) => {
+      if (e.data === '[DONE]') {
+        es.close()
+        setPullState(s => ({ ...s, [modelId]: { active: false, status: '완료', pct: 100, error: null } }))
+        fetchJSON(API.models).then(d => setModels(d?.models || [])).catch(() => {})
+        toast(`${modelId} 설치 완료`, 'success')
+        return
+      }
+      try {
+        const d = JSON.parse(e.data)
+        if (d.error) {
+          es.close()
+          setPullState(s => ({ ...s, [modelId]: { active: false, status: '오류', pct: 0, error: d.error } }))
+          toast(`다운로드 실패: ${d.error}`, 'error')
+          return
+        }
+        const pct = d.total ? Math.round((d.completed || 0) / d.total * 100) : null
+        setPullState(s => ({
+          ...s,
+          [modelId]: { active: true, status: d.status || '다운로드 중...', pct: pct ?? s[modelId]?.pct ?? 0, error: null },
+        }))
+      } catch {}
+    }
+    es.onerror = () => {
+      es.close()
+      setPullState(s => ({ ...s, [modelId]: { active: false, status: '연결 오류', pct: 0, error: '연결이 끊어졌습니다' } }))
+      toast('다운로드 연결 오류', 'error')
+    }
+  }
+
   async function handleReloadPipelines() {
     try {
       await fetch(API.optimizeReload, { method: 'POST' })
@@ -78,6 +121,7 @@ export default function SettingsPage() {
   }
 
   const TABS = [
+    { id: 'profile', label: '내 정보' },
     { id: 'general', label: '일반' },
     { id: 'models', label: '모델 관리' },
     { id: 'optimization', label: '프롬프트 최적화' },
@@ -98,16 +142,56 @@ export default function SettingsPage() {
         ))}
       </div>
 
+      {tab === 'profile' && (
+        <div className="settings-section">
+          <p style={{ marginBottom: 20, color: 'var(--ink3)', fontSize: '0.9rem' }}>
+            문서 작성 시 자동으로 입력되는 기본 정보입니다.
+          </p>
+          <div className="form-group">
+            <label>부서명</label>
+            <input
+              type="text"
+              value={settings.department_name || ''}
+              onChange={e => updateSetting('department_name', e.target.value)}
+              placeholder="예: 정보통신과"
+            />
+          </div>
+          <div className="form-group">
+            <label>담당자 이름</label>
+            <input
+              type="text"
+              value={settings.officer_name || ''}
+              onChange={e => updateSetting('officer_name', e.target.value)}
+              placeholder="예: 홍길동"
+            />
+          </div>
+          <button className="btn btn-primary" onClick={handleSaveSettings} disabled={loading}>
+            {loading ? '저장 중...' : '저장'}
+          </button>
+        </div>
+      )}
+
       {tab === 'general' && (
         <div className="settings-section">
           <div className="form-group">
             <label>작업 폴더</label>
-            <input
-              type="text"
-              value={settings.working_dir || ''}
-              onChange={e => updateSetting('working_dir', e.target.value)}
-            />
+            <div className="save-path-row">
+              <div className={`save-path-display${settings.working_dir ? '' : ' empty'}`}>
+                {settings.working_dir || '기본 경로 (문서 폴더)'}
+              </div>
+              {settings.working_dir && (
+                <button className="save-path-clear" onClick={() => updateSetting('working_dir', '')} title="초기화">&times;</button>
+              )}
+              <button className="btn btn-browse" onClick={() => setDirPickerOpen(true)}>찾아보기</button>
+            </div>
           </div>
+
+          <FolderPicker
+            open={dirPickerOpen}
+            onClose={() => setDirPickerOpen(false)}
+            onSelect={path => { updateSetting('working_dir', path); setDirPickerOpen(false) }}
+            mode="folder"
+          />
           <div className="form-group">
             <label>Ollama URL</label>
             <input
@@ -138,27 +222,63 @@ export default function SettingsPage() {
           <h3>사용 가능한 모델</h3>
           <table className="table">
             <thead>
-              <tr><th>모델</th><th>크기</th><th>RAM</th><th>상태</th><th>기능</th></tr>
+              <tr><th>모델</th><th>크기</th><th>RAM</th><th>상태</th><th>기능</th><th>액션</th></tr>
             </thead>
             <tbody>
-              {models.map(m => (
-                <tr key={m.id}>
-                  <td>{m.name}</td>
-                  <td>{m.param_size}B</td>
-                  <td>{m.ram_gb}GB</td>
-                  <td>
-                    <span className={`badge ${m.available ? 'badge-success' : 'badge-error'}`}>
-                      {m.available ? '사용 가능' : '미설치'}
-                    </span>
-                  </td>
-                  <td>
-                    {m.supports_thinking && <span className="badge badge-info" style={{ marginRight: 4 }}>Thinking</span>}
-                    {m.supports_embedding && <span className="badge badge-info">Embedding</span>}
-                  </td>
-                </tr>
-              ))}
+              {models.map(m => {
+                const ps = pullState[m.id]
+                return (
+                  <tr key={m.id}>
+                    <td>{m.name}</td>
+                    <td>{m.param_size}B</td>
+                    <td>{m.ram_gb}GB</td>
+                    <td>
+                      <span className={`badge ${m.available ? 'badge-success' : 'badge-error'}`}>
+                        {m.available ? '사용 가능' : '미설치'}
+                      </span>
+                    </td>
+                    <td>
+                      {m.supports_thinking && <span className="badge badge-info" style={{ marginRight: 4 }}>Thinking</span>}
+                      {m.supports_embedding && <span className="badge badge-info">Embedding</span>}
+                    </td>
+                    <td style={{ minWidth: 160 }}>
+                      {!m.available && !ps?.active && !ps?.pct && (
+                        <button
+                          className="btn btn-secondary"
+                          style={{ padding: '3px 10px', fontSize: '0.8rem' }}
+                          onClick={() => handlePull(m.id)}
+                        >
+                          &#11015; 다운로드
+                        </button>
+                      )}
+                      {ps?.active && (
+                        <div className="pull-progress">
+                          <div className="progress-bar" style={{ height: 6, marginBottom: 4 }}>
+                            <div className="progress-fill" style={{ width: `${ps.pct}%`, transition: 'width 0.3s' }} />
+                          </div>
+                          <span style={{ fontSize: '0.75rem', color: 'var(--ink3)' }}>
+                            {ps.status}{ps.pct > 0 ? ` ${ps.pct}%` : ''}
+                          </span>
+                        </div>
+                      )}
+                      {ps && !ps.active && ps.pct === 100 && (
+                        <span style={{ fontSize: '0.8rem', color: 'var(--teal)' }}>&#10003; 설치 완료</span>
+                      )}
+                      {ps?.error && (
+                        <span
+                          style={{ fontSize: '0.8rem', color: '#dc2626', cursor: 'pointer' }}
+                          title={ps.error}
+                          onClick={() => handlePull(m.id)}
+                        >
+                          &#10005; 재시도
+                        </span>
+                      )}
+                    </td>
+                  </tr>
+                )
+              })}
               {models.length === 0 && (
-                <tr><td colSpan={5} style={{ textAlign: 'center', padding: 40, color: 'var(--ink3)' }}>모델 정보를 불러오는 중...</td></tr>
+                <tr><td colSpan={6} style={{ textAlign: 'center', padding: 40, color: 'var(--ink3)' }}>모델 정보를 불러오는 중...</td></tr>
               )}
             </tbody>
           </table>
@@ -203,14 +323,14 @@ export default function SettingsPage() {
           )}
 
           <div className="form-actions" style={{ flexWrap: 'wrap', gap: 8 }}>
-            {['gianmun', 'docent', 'complaint', 'meeting'].map(p => (
+            {PIPELINES.map(p => (
               <button
-                key={p}
+                key={p.id}
                 className="btn btn-primary"
-                onClick={() => handleOptimize(p)}
+                onClick={() => handleOptimize(p.id)}
                 disabled={!!optProgress}
               >
-                {p} 최적화
+                {p.label}
               </button>
             ))}
             <button className="btn btn-secondary" onClick={handleReloadPipelines}>

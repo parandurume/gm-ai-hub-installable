@@ -3,6 +3,21 @@ import { Link } from 'react-router-dom'
 import { fetchJSON, API } from '../utils/api'
 import { timeAgo } from '../utils/date'
 
+const PRIMARY_ACTIONS = [
+  { to: '/gianmun',   icon: '✍️',  title: '기안문 작성',  desc: '공문서 AI 초안 생성 + HWPX 저장' },
+  { to: '/chat',      icon: '🤖', title: 'AI 채팅',      desc: '공문서 작성 전반 어시스턴트' },
+  { to: '/complaint', icon: '📨', title: '민원 답변',     desc: '민원 분류 + 답변 초안 자동 생성' },
+]
+
+const SECONDARY_ACTIONS = [
+  { to: '/meeting',    icon: '📋', label: '회의록' },
+  { to: '/search',     icon: '🔍', label: '문서 검색' },
+  { to: '/regulation', icon: '⚖️',  label: '법령 검색' },
+  { to: '/pii',        icon: '🔒', label: 'PII 검사' },
+  { to: '/diff',       icon: '🔄', label: '문서 비교' },
+  { to: '/files',      icon: '📂', label: '문서 관리' },
+]
+
 export default function Dashboard() {
   const [stats, setStats] = useState(null)
   const [aiStatus, setAiStatus] = useState(null)
@@ -16,102 +31,66 @@ export default function Dashboard() {
     fetchJSON(API.optimizeStatus).then(setOptStatus).catch(() => {})
   }, [])
 
+  const serverOk = !!stats
+  const aiOk = aiStatus?.status === 'ok'
+
   return (
     <div className="page-dashboard">
       <h2>대시보드</h2>
 
-      <div className="dashboard-grid">
-        {/* 시스템 상태 */}
-        <div className="card">
-          <div className="card-header">시스템 상태</div>
-          <div className="card-body">
-            <div className="stat-row">
-              <span>서버</span>
-              <span className={`badge ${stats ? 'badge-success' : 'badge-error'}`}>
-                {stats ? '정상' : '확인 중...'}
-              </span>
+      {/* Compact system status bar */}
+      <div className="status-bar">
+        <div className="status-bar-item">
+          <span className={`status-dot-sm ${serverOk ? 'ok' : 'err'}`} />
+          <span>서버 {serverOk ? '정상' : '확인 중'}</span>
+          {stats?.version && <span className="status-meta">v{stats.version}</span>}
+        </div>
+        <div className="status-bar-sep" />
+        <div className="status-bar-item">
+          <span className={`status-dot-sm ${aiOk ? 'ok' : 'err'}`} />
+          <span>Ollama {aiOk ? '연결됨' : '오프라인'}</span>
+          {models.length > 0 && <span className="status-meta">{models.length}개 모델</span>}
+        </div>
+        <div className="status-bar-sep" />
+        <div className="status-bar-item">
+          <span className={`status-dot-sm ${optStatus?.optimized ? 'ok' : 'warn'}`} />
+          <span>프롬프트 {optStatus?.optimized ? '최적화됨' : '미최적화'}</span>
+          {optStatus?.last_optimized && (
+            <span className="status-meta">{timeAgo(optStatus.last_optimized)}</span>
+          )}
+        </div>
+        {stats?.document_count !== undefined && (
+          <>
+            <div className="status-bar-sep" />
+            <div className="status-bar-item">
+              <span>문서 {stats.document_count}개</span>
             </div>
-            {stats?.version && (
-              <div className="stat-row">
-                <span>버전</span>
-                <span>{stats.version}</span>
-              </div>
-            )}
-            {stats?.document_count !== undefined && (
-              <div className="stat-row">
-                <span>문서 수</span>
-                <span className="stat-value">{stats.document_count}</span>
-              </div>
-            )}
-          </div>
-        </div>
+          </>
+        )}
+      </div>
 
-        {/* AI 엔진 */}
-        <div className="card">
-          <div className="card-header">AI 엔진 (Ollama)</div>
-          <div className="card-body">
-            <div className="stat-row">
-              <span>상태</span>
-              <span className={`badge ${aiStatus?.status === 'ok' ? 'badge-success' : 'badge-error'}`}>
-                {aiStatus?.status === 'ok' ? '연결됨' : '오프라인'}
-              </span>
+      {/* Primary action cards */}
+      <div className="dashboard-primary-grid">
+        {PRIMARY_ACTIONS.map(a => (
+          <Link key={a.to} to={a.to} className="dashboard-action-card">
+            <span className="dac-icon">{a.icon}</span>
+            <div className="dac-body">
+              <div className="dac-title">{a.title}</div>
+              <div className="dac-desc">{a.desc}</div>
             </div>
-            {models.length > 0 && (
-              <div className="stat-row">
-                <span>사용 가능 모델</span>
-                <span className="stat-value">{models.length}개</span>
-              </div>
-            )}
-            {models.slice(0, 3).map(m => (
-              <div key={m.id} className="stat-row" style={{ fontSize: '0.85rem' }}>
-                <span>{m.name}</span>
-                <span style={{ color: 'var(--ink3)' }}>{m.param_size}B</span>
-              </div>
-            ))}
-          </div>
-        </div>
+            <span className="dac-arrow">›</span>
+          </Link>
+        ))}
+      </div>
 
-        {/* MIPROv2 최적화 */}
-        <div className="card">
-          <div className="card-header">프롬프트 최적화</div>
-          <div className="card-body">
-            {optStatus ? (
-              <>
-                <div className="stat-row">
-                  <span>상태</span>
-                  <span className={`badge ${optStatus.optimized ? 'badge-success' : 'badge-warning'}`}>
-                    {optStatus.optimized ? '최적화됨' : '미최적화'}
-                  </span>
-                </div>
-                {optStatus.last_optimized && (
-                  <div className="stat-row">
-                    <span>마지막 최적화</span>
-                    <span>{timeAgo(optStatus.last_optimized)}</span>
-                  </div>
-                )}
-                {optStatus.version && (
-                  <div className="stat-row">
-                    <span>버전</span>
-                    <span>v{optStatus.version}</span>
-                  </div>
-                )}
-              </>
-            ) : (
-              <p style={{ color: 'var(--ink3)' }}>로딩 중...</p>
-            )}
-          </div>
-        </div>
-
-        {/* 빠른 링크 */}
-        <div className="card">
-          <div className="card-header">빠른 작업</div>
-          <div className="card-body quick-links">
-            <Link to="/gianmun" className="btn btn-primary">기안문 작성</Link>
-            <Link to="/search" className="btn btn-secondary">문서 검색</Link>
-            <Link to="/chat" className="btn btn-secondary">AI 채팅</Link>
-            <Link to="/pii" className="btn btn-secondary">PII 검사</Link>
-          </div>
-        </div>
+      {/* Secondary quick links */}
+      <div className="dashboard-secondary-grid">
+        {SECONDARY_ACTIONS.map(a => (
+          <Link key={a.to} to={a.to} className="dashboard-quick-link">
+            <span>{a.icon}</span>
+            <span>{a.label}</span>
+          </Link>
+        ))}
       </div>
     </div>
   )
