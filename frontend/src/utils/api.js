@@ -34,6 +34,9 @@ export const API = {
   samplesPending:     `${BASE}/samples/pending`,
   samplesApprove:     `${BASE}/samples/approve`,
   samplesReject:      `${BASE}/samples/reject`,
+  setupStatus:        `${BASE}/setup/status`,
+  setupCheckOllama:   `${BASE}/setup/check-ollama`,
+  setupComplete:      `${BASE}/setup/complete`,
 }
 
 export async function fetchJSON(url, options = {}) {

@@ -8,8 +8,10 @@ from fastapi import FastAPI
 def register_routes(app: FastAPI) -> None:
     """모든 API 라우터를 앱에 등록."""
     from backend.api.health import router as health_router
+    from backend.api.setup_wizard import router as setup_router
 
     app.include_router(health_router)
+    app.include_router(setup_router)
 
     # Phase 2에서 추가되는 라우터들
     try:
