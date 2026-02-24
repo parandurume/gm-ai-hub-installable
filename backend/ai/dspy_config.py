@@ -29,7 +29,8 @@ def load_optimized_pipeline(
     pipeline_instance, pipeline_name: str, model: str
 ) -> bool:
     """최적화된 파이프라인 파일 자동 로드 (RULE-14)."""
-    opt_dir = Path(f"backend/ai/optimization/optimized/{pipeline_name}")
+    from backend import paths
+    opt_dir = paths.optimized_pipelines_dir() / pipeline_name
     if not opt_dir.exists():
         return False
 

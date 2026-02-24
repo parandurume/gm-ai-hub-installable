@@ -110,7 +110,8 @@ async def run_optimization(
     avg_score = sum(val_scores) / len(val_scores) if val_scores else 0.0
 
     # 7. 저장 (RULE-14)
-    save_dir = Path("backend/ai/optimization/optimized") / pipeline_name
+    from backend import paths
+    save_dir = paths.optimized_pipelines_dir() / pipeline_name
     save_dir.mkdir(parents=True, exist_ok=True)
 
     model_tag = model.replace(":", "-").replace("/", "_")

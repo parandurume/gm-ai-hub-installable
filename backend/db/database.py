@@ -9,11 +9,12 @@ from pathlib import Path
 import aiosqlite
 import structlog
 
+from backend import paths
 from backend.config import settings
 
 log = structlog.get_logger()
 
-_MIGRATIONS_DIR = Path(__file__).parent / "migrations"
+_MIGRATIONS_DIR = paths.migrations_dir()
 
 
 async def init_db() -> None:

@@ -17,12 +17,28 @@ async def build_dataset(
     """학습/검증 데이터셋 반환."""
     examples: list[dict] = []
 
-    # 1a. 디렉토리 기반 예시 로드 (data/examples/{pipeline}/*.json)
-    example_dir = Path(f"data/examples/{pipeline_name}")
-    if example_dir.exists() and example_dir.is_dir():
-        for fp in example_dir.glob("*.json"):
+    from backend import paths
+
+    # 1a. 디렉토리 기반 예시 로드 (bundled + user examples)
+    for base_dir in [paths.bundled_examples_dir(), paths.user_examples_dir()]:
+        example_dir = base_dir / pipeline_name
+        if example_dir.exists() and example_dir.is_dir():
+            for fp in example_dir.glob("*.json"):
+                try:
+                    data = json.loads(fp.read_text(encoding="utf-8"))
+                    if isinstance(data, list):
+                        examples.extend(data)
+                    elif isinstance(data, dict):
+                        examples.append(data)
+                except Exception:
+                    pass
+
+    # 1b. 플랫 파일 로드 (bundled + user examples)
+    for base_dir in [paths.bundled_examples_dir(), paths.user_examples_dir()]:
+        flat_file = base_dir / f"{pipeline_name}_examples.json"
+        if flat_file.exists():
             try:
-                data = json.loads(fp.read_text(encoding="utf-8"))
+                data = json.loads(flat_file.read_text(encoding="utf-8"))
                 if isinstance(data, list):
                     examples.extend(data)
                 elif isinstance(data, dict):
@@ -30,7 +46,7 @@ async def build_dataset(
             except Exception:
                 pass
 
-    # 1b. 플랫 파일 로드 (data/examples/{pipeline}_examples.json)
+    # Legacy flat file fallback
     flat_file = Path(f"data/examples/{pipeline_name}_examples.json")
     if flat_file.exists():
         try:

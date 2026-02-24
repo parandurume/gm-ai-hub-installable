@@ -13,8 +13,10 @@ from backend.services.hwpx_service import HwpxService
 
 log = structlog.get_logger()
 
-SAMPLES_ROOT = Path("data/samples")
-EXAMPLES_ROOT = Path("data/examples")
+from backend import paths
+
+SAMPLES_ROOT = paths.user_samples_dir()
+EXAMPLES_ROOT = paths.user_examples_dir()
 VALID_PIPELINES = {"gianmun", "docent", "complaint", "meeting"}
 
 # ── Pipeline-specific AI prompts ──────────────────────────────────

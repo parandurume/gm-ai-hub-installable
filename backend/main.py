@@ -13,13 +13,13 @@ GM-AI-Hub FastAPI 애플리케이션 진입점.
 from __future__ import annotations
 
 from contextlib import asynccontextmanager
-from pathlib import Path
 
 import structlog
 from fastapi import FastAPI
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
+from backend import paths
 from backend.api.router import register_routes
 from backend.config import settings
 from backend.db.database import init_db
@@ -58,7 +58,7 @@ app = FastAPI(
 register_routes(app)
 
 # 정적 파일 (프론트엔드 빌드 결과)
-_frontend_dist = Path("frontend/dist")
+_frontend_dist = paths.frontend_dist()
 if (_frontend_dist / "assets").exists():
     app.mount("/assets", StaticFiles(directory=str(_frontend_dist / "assets")))
 
@@ -75,9 +75,17 @@ async def serve_spa(full_path: str):
 def start():
     import uvicorn
 
-    uvicorn.run(
-        "backend.main:app",
-        host=settings.APP_HOST,
-        port=settings.APP_PORT,
-        reload=settings.APP_DEBUG,
-    )
+    if paths.is_frozen():
+        uvicorn.run(
+            app,
+            host=settings.APP_HOST,
+            port=settings.APP_PORT,
+            reload=False,
+        )
+    else:
+        uvicorn.run(
+            "backend.main:app",
+            host=settings.APP_HOST,
+            port=settings.APP_PORT,
+            reload=settings.APP_DEBUG,
+        )

@@ -1,4 +1,4 @@
-"""GM-AI-Hub 설정 — 환경변수 기반 Pydantic Settings."""
+"""GM-AI-Hub Desktop 설정 — 환경변수 기반 Pydantic Settings."""
 
 from __future__ import annotations
 
@@ -7,6 +7,8 @@ from pathlib import Path
 from typing import Literal
 
 from pydantic_settings import BaseSettings
+
+from backend import paths
 
 
 def _detect_hwp_tier() -> str:
@@ -40,10 +42,10 @@ class Settings(BaseSettings):
     APP_DEBUG: bool = False
     APP_ENV: Literal["development", "production"] = "production"
 
-    # ── Filesystem (project-relative by default) ──
-    WORKING_DIR: Path = Path("./data/workspace")
-    EXPORT_DIR: Path = Path("./data/workspace/exports")
-    IMPORT_DIR: Path = Path("./data/workspace/imports")
+    # ── Filesystem (defaults to %LOCALAPPDATA%/GM-AI-Hub/) ──
+    WORKING_DIR: Path = paths.workspace_dir()
+    EXPORT_DIR: Path = paths.exports_dir()
+    IMPORT_DIR: Path = paths.imports_dir()
 
     # ── Ollama ──
     OLLAMA_BASE_URL: str = "http://127.0.0.1:11434"
@@ -52,7 +54,7 @@ class Settings(BaseSettings):
     OLLAMA_TIMEOUT: int = 120
 
     # ── Database ──
-    DB_PATH: Path = Path("./data/workspace/gm_ai_hub.db")
+    DB_PATH: Path = paths.db_path()
 
     # ── Security ──
     PII_SCAN_ON_EXPORT: bool = True
@@ -61,10 +63,6 @@ class Settings(BaseSettings):
 
     # ── Folder watch ──
     WATCH_PATHS: str = ""
-
-    # ── MCP ──
-    MCP_PORT: int = 8081
-    MCP_TRANSPORT: Literal["stdio", "sse"] = "stdio"
 
     # ── Government PC ──
     GOVPC_MODE: bool = False
@@ -76,7 +74,10 @@ class Settings(BaseSettings):
     DEPARTMENT_CODE: str = ""
     OFFICER_NAME: str = ""
 
-    model_config = {"env_file": ".env", "env_file_encoding": "utf-8"}
+    model_config = {
+        "env_file": str(paths.env_file_path()) if paths.env_file_path().exists() else ".env",
+        "env_file_encoding": "utf-8",
+    }
 
     @property
     def watch_paths_list(self) -> list[str]:
