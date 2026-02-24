@@ -37,6 +37,18 @@ ENVIRONMENT_DEFAULTS: dict[str, dict[str, str]] = {
         "budget_calc": "qwen3.5:72b",
         "docent_plan": "qwen3.5:72b",
     },
+    "desktop": {
+        "default": "qwen3:14b",
+        "classify": "joonoh/HyperCLOVAX-SEED-Text-Instruct-1.5B",
+        "summarize": "joonoh/HyperCLOVAX-SEED-Text-Instruct-1.5B",
+        "gianmun_body": "qwen3:14b",
+        "plan_document": "qwen3:14b",
+        "budget_calc": "qwen3:14b",
+        "docent_plan": "qwen3:14b",
+        "complaint_resp": "qwen3:14b",
+        "meeting_minutes": "qwen3:14b",
+        "incoming_doc": "joonoh/HyperCLOVAX-SEED-Text-Instruct-1.5B",
+    },
 }
 
 
@@ -189,7 +201,7 @@ class ModelRegistry:
         """설치된 모델 중 가장 적합한 것으로 대체 (패밀리 기반)."""
         preferred_families = [
             "gpt-oss", "qwen3", "qwen3.5", "exaone",
-            "deepseek-r1", "phi4", "llama3.2", "llama3",
+            "hyperclovax", "deepseek-r1", "phi4", "llama3.2", "llama3",
         ]
         for fam in preferred_families:
             candidates = [m for m in self._available if m.family == fam]

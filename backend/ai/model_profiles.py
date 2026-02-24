@@ -19,6 +19,7 @@ FAMILY_PATTERNS: list[tuple[str, str, bool]] = [
     ("phi3", "phi3", False),
     ("llama3.2", "llama3.2", False),
     ("llama3", "llama3", False),
+    ("hyperclovax", "hyperclovax", False),
     ("gemma", "gemma", False),
     ("mistral", "mistral", False),
 ]
@@ -182,6 +183,17 @@ BUILTIN_PROFILES: dict[str, ModelProfile] = {
         context_len=32768,
         strengths=["추론", "수학", "계획"],
         best_for=["budget_calc", "plan_document"],
+    ),
+    "joonoh/HyperCLOVAX-SEED-Text-Instruct-1.5B": ModelProfile(
+        id="joonoh/HyperCLOVAX-SEED-Text-Instruct-1.5B",
+        name="HyperCLOVA X 1.5B",
+        family="hyperclovax",
+        param_size=2,
+        ram_gb=2,
+        supports_thinking=False,
+        context_len=4096,
+        strengths=["한국어특화", "경량", "빠른응답"],
+        best_for=["classify", "summarize"],
     ),
     "phi4:latest": ModelProfile(
         id="phi4:latest",

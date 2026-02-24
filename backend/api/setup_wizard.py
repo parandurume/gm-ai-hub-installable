@@ -15,7 +15,8 @@ router = APIRouter(prefix="/api/setup", tags=["setup"])
 
 # Ollama에서 확인할 권장 모델 목록
 RECOMMENDED_MODELS = [
-    {"id": "gpt-oss:20b", "name": "GPT-OSS 20B", "description": "기본 텍스트 생성 모델", "required": True},
+    {"id": "qwen3:14b", "name": "Qwen3 14B", "description": "기본 문서 생성 모델 (추론 지원)", "required": True},
+    {"id": "joonoh/HyperCLOVAX-SEED-Text-Instruct-1.5B", "name": "HyperCLOVA X 1.5B", "description": "한국어 특화 경량 모델 (분류/요약)", "required": False},
     {"id": "nomic-embed-text", "name": "Nomic Embed Text", "description": "문서 임베딩용", "required": False},
 ]
 
@@ -75,7 +76,7 @@ class SetupCompleteRequest(BaseModel):
     department_name: str = ""
     officer_name: str = ""
     ollama_url: str = "http://127.0.0.1:11434"
-    ollama_model: str = "gpt-oss:20b"
+    ollama_model: str = "qwen3:14b"
 
 
 @router.post("/complete")
