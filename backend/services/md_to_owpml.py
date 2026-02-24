@@ -26,6 +26,7 @@ _UNORDERED_RE = re.compile(r"^[-*]\s+(.+)$")
 _BLOCKQUOTE_RE = re.compile(r"^>\s*(.*)$")
 _HEADING_RE = re.compile(r"^(#{1,5})\s+(.+)$")
 _HR_RE = re.compile(r"^-{3,}$")
+_CODE_FENCE_RE = re.compile(r"^(`{3,})(\w*)$")
 
 # OWPML 테이블 너비 기준 (A4 본문 영역 ≈ 42520 HWPUNIT)
 _TABLE_WIDTH = 42520
@@ -120,9 +121,7 @@ def _make_table(
                 f' hasTextRef="0" hasNumRef="0">'
                 f'<hp:p id="{para_id}" paraPrIDRef="0" styleIDRef="0"'
                 f' pageBreak="0" columnBreak="0" merged="0">'
-                f'<hp:run charPrIDRef="{char_id}">'
-                f'<hp:t>{_esc(val)}</hp:t>'
-                f'</hp:run>'
+                f'{_make_runs(_clean_inline(val), char_id)}'
                 f'</hp:p>'
                 f'</hp:subList>'
                 f'<hp:cellAddr colAddr="{ci}" rowAddr="{ri}"/>'
@@ -205,6 +204,24 @@ def parse_md_blocks(content: str) -> list[dict]:
         if not stripped:
             blocks.append({"type": "empty"})
             i += 1
+            continue
+
+        # 코드 펜스 (``` ... ```)
+        fence_m = _CODE_FENCE_RE.match(stripped)
+        if fence_m:
+            fence_marker = fence_m.group(1)
+            code_lines: list[str] = []
+            i += 1
+            while i < len(lines):
+                cl = lines[i]
+                if cl.strip() == fence_marker:
+                    i += 1
+                    break
+                code_lines.append(cl)
+                i += 1
+            # 코드 블록 내 각 줄을 일반 단락으로 출력 (인라인 처리 없이)
+            for cl in code_lines:
+                blocks.append({"type": "para", "text": cl, "style": 0, "code": True})
             continue
 
         # 수평선
@@ -313,7 +330,17 @@ def md_to_owpml_elements(content: str, start_id: int = 1) -> str:
 
         elif btype == "para":
             style = block["style"]
-            parts.append(_make_para(block["text"], style, style, para_id=pid))
+            if block.get("code"):
+                # 코드 블록: 인라인 처리 없이 그대로 출력
+                parts.append(
+                    f'<hp:p id="{pid}" paraPrIDRef="0" styleIDRef="0"'
+                    ' pageBreak="0" columnBreak="0" merged="0">'
+                    f'<hp:run charPrIDRef="0">'
+                    f'<hp:t>{_esc(block["text"])}</hp:t>'
+                    '</hp:run></hp:p>'
+                )
+            else:
+                parts.append(_make_para(block["text"], style, style, para_id=pid))
             pid += 1
 
         elif btype == "table":
