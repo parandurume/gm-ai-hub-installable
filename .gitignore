@@ -1,0 +1,25 @@
+.env
+.venv/
+.claude/
+__pycache__/
+*.pyc
+*.pyo
+*.db
+*.db-journal
+*.db-wal
+frontend/node_modules/
+frontend/dist/
+backend/ai/optimization/optimized/
+*.egg-info/
+dist/
+build/output/
+.pytest_cache/
+.ruff_cache/
+*.log
+data/workspace/*
+!data/workspace/.gitkeep
+data/samples/**/.pending.json
+data/samples/**/*.hwpx
+data/samples/**/*.hwp
+# Installer output
+installer/Output/

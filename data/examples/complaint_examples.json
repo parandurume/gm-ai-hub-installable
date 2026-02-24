@@ -1,0 +1,32 @@
+[
+  {
+    "text": "광명시 철산동 주민입니다. 아파트 앞 도로에 불법 주차 차량이 너무 많아 보행이 불편합니다. 특히 출퇴근 시간에 이중주차로 인해 차량 통행도 어렵습니다. 단속을 강화해 주시기 바랍니다.",
+    "expected_category": "교통/주차",
+    "expected_department": "교통행정과",
+    "expected_urgency": "medium"
+  },
+  {
+    "text": "소하동 음식물 쓰레기 수거가 일주일째 안 되고 있습니다. 악취가 심하고 벌레가 꼬이고 있어 위생상 문제가 심각합니다. 빠른 조치 부탁드립니다.",
+    "expected_category": "환경/청소",
+    "expected_department": "청소행정과",
+    "expected_urgency": "high"
+  },
+  {
+    "text": "광명시 하안동에 거주하는 독거노인입니다. 기초연금 수급 신청을 하고 싶은데 방법을 모르겠습니다. 필요한 서류와 절차를 안내해 주시면 감사하겠습니다.",
+    "expected_category": "복지/보건",
+    "expected_department": "노인장애인과",
+    "expected_urgency": "low"
+  },
+  {
+    "text": "광명7동 광명초등학교 앞 횡단보도에 신호등이 없어 아이들이 매우 위험합니다. 사고가 발생하기 전에 신호등 설치를 요청합니다.",
+    "expected_category": "교통/주차",
+    "expected_department": "교통행정과",
+    "expected_urgency": "high"
+  },
+  {
+    "text": "광명시 사회적경제 관련 지원사업에 참여하고 싶습니다. 사회적기업 인증 절차와 지원 내용에 대해 상세히 안내해 주시기 바랍니다.",
+    "expected_category": "경제/일자리",
+    "expected_department": "사회적경제과",
+    "expected_urgency": "low"
+  }
+]

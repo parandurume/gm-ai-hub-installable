@@ -1,0 +1,52 @@
+[build-system]
+requires = ["setuptools>=70"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "gm-ai-hub-app"
+version = "2.0.0"
+description = "GM-AI-Hub Desktop - 광명시 AI 통합 공문서 시스템 (설치형)"
+requires-python = ">=3.11"
+dependencies = [
+    "fastapi>=0.115",
+    "uvicorn[standard]>=0.30",
+    "pydantic>=2.7",
+    "pydantic-settings>=2.3",
+    "aiosqlite>=0.19",
+    "httpx>=0.27",
+    "python-dotenv>=1.0",
+    "structlog>=24.0",
+    "watchdog>=4.0",
+    "PyMuPDF>=1.24",
+    "python-docx>=1.1",
+    "openpyxl>=3.1",
+    "lxml>=5.2",
+    "fastmcp>=2.0",
+    "dspy-ai>=2.5",
+    "openai>=1.40",
+    "python-multipart>=0.0.9",
+    # Desktop app dependencies
+    "pystray>=0.19",
+    "Pillow>=10.0",
+]
+
+[project.optional-dependencies]
+hwp = ["pyhwp>=0.1b12"]
+whisper = ["openai-whisper"]
+embed = ["sentence-transformers"]
+dev = ["pytest", "pytest-asyncio", "ruff", "httpx", "pyinstaller>=6.0"]
+
+[project.scripts]
+gm-hub = "backend.main:start"
+gm-hub-tray = "launcher.tray:main"
+
+[tool.setuptools.packages.find]
+include = ["backend*", "launcher*"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]

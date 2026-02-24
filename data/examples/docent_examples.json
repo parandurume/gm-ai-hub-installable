@@ -1,0 +1,47 @@
+[
+  {
+    "title": "AI 도서관 도슨트 양성 프로젝트",
+    "target_count": 10,
+    "months": 6,
+    "expected_project_type": "교육훈련",
+    "expected_fiscal_year": 2026,
+    "expected_total_krw": 45000000,
+    "expected_items_count": 5
+  },
+  {
+    "title": "광명시 문화해설사 AI 보조시스템 구축",
+    "target_count": 20,
+    "months": 8,
+    "expected_project_type": "시스템구축",
+    "expected_fiscal_year": 2026,
+    "expected_total_krw": 120000000,
+    "expected_items_count": 6
+  },
+  {
+    "title": "스마트 박물관 도슨트 로봇 도입",
+    "target_count": 5,
+    "months": 12,
+    "expected_project_type": "장비도입",
+    "expected_fiscal_year": 2026,
+    "expected_total_krw": 350000000,
+    "expected_items_count": 4
+  },
+  {
+    "title": "시민 AI 리터러시 교육 프로그램",
+    "target_count": 100,
+    "months": 3,
+    "expected_project_type": "교육훈련",
+    "expected_fiscal_year": 2026,
+    "expected_total_krw": 25000000,
+    "expected_items_count": 4
+  },
+  {
+    "title": "공공도서관 AI 독서 큐레이션 서비스 개발",
+    "target_count": 15,
+    "months": 10,
+    "expected_project_type": "서비스개발",
+    "expected_fiscal_year": 2026,
+    "expected_total_krw": 80000000,
+    "expected_items_count": 5
+  }
+]

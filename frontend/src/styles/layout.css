@@ -1,0 +1,169 @@
+/* GM-AI-Hub 레이아웃 — layout.css */
+
+.app-layout {
+  display: flex;
+  min-height: 100vh;
+}
+
+/* ── 사이드바 ─────────────────────────────────────────── */
+.sidebar {
+  width: var(--sidebar-width);
+  background: var(--navy);
+  color: var(--white);
+  display: flex;
+  flex-direction: column;
+  position: fixed;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  z-index: 100;
+}
+
+.sidebar-logo {
+  padding: 18px 16px;
+  border-bottom: 1px solid rgba(255,255,255,0.1);
+}
+.sidebar-logo h1 {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--teal2);
+}
+.sidebar-logo span {
+  font-size: 0.75rem;
+  color: rgba(255,255,255,0.5);
+}
+
+.sidebar-nav { flex: 1; padding: 8px 0; overflow-y: auto; }
+
+.sidebar-nav a {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 16px;
+  color: rgba(255,255,255,0.75);
+  font-size: 0.9rem;
+  transition: all 0.15s;
+}
+.sidebar-nav a:hover {
+  background: var(--navy2);
+  color: var(--white);
+}
+.sidebar-nav a.active {
+  background: var(--teal);
+  color: var(--white);
+  border-right: 3px solid var(--teal2);
+}
+.sidebar-nav a .nav-icon { font-size: 1.1rem; width: 22px; text-align: center; }
+
+.sidebar-footer {
+  padding: 12px 16px;
+  border-top: 1px solid rgba(255,255,255,0.1);
+  font-size: 0.75rem;
+  color: rgba(255,255,255,0.4);
+}
+
+/* ── 메인 영역 ─────────────────────────────────────────── */
+.main-area {
+  margin-left: var(--sidebar-width);
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+/* ── 탑바 ─────────────────────────────────────────────── */
+.topbar {
+  height: var(--topbar-height);
+  background: var(--white);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 24px;
+  position: sticky;
+  top: 0;
+  z-index: 50;
+}
+.topbar-title { font-size: 1rem; font-weight: 500; }
+.topbar-actions { display: flex; gap: 8px; align-items: center; }
+
+/* ── 컨텐츠 ────────────────────────────────────────────── */
+.content {
+  flex: 1;
+  padding: 24px;
+  max-width: 1400px;
+}
+
+/* ── 좌우 분할 ──────────────────────────────────────────── */
+.split-view {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+  height: calc(100vh - var(--topbar-height) - 48px);
+}
+.split-view .panel {
+  background: var(--white);
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  overflow-y: auto;
+}
+.panel-header {
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--border);
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.panel-body { padding: 16px 18px; }
+
+/* ── 탑바 왼쪽 영역 ────────────────────────────────────── */
+.topbar-left { display: flex; align-items: center; gap: 8px; }
+.hamburger-btn {
+  display: none; background: none; border: none; font-size: 1.4rem;
+  cursor: pointer; color: var(--ink2); padding: 4px 8px; line-height: 1;
+}
+.hamburger-btn:hover { color: var(--ink); }
+
+/* ── 사이드바 백드롭 (모바일 전용) ─────────────────────── */
+.sidebar-backdrop {
+  display: none; position: fixed; inset: 0;
+  background: rgba(0,0,0,0.4); z-index: 99;
+}
+
+/* ── 반응형 — 태블릿 (≤1024px) ────────────────────────── */
+@media (max-width: 1024px) {
+  :root { --sidebar-width: 64px; }
+  .sidebar-logo span,
+  .sidebar-nav a span:not(.nav-icon),
+  .sidebar-footer { display: none; }
+  .sidebar-logo { padding: 14px 12px; text-align: center; }
+  .sidebar-logo h1 { font-size: 0.85rem; }
+  .sidebar-nav a { justify-content: center; padding: 12px 8px; }
+  .sidebar-nav a .nav-icon { width: auto; font-size: 1.2rem; }
+  .split-view { grid-template-columns: 1fr; }
+  .split-view { height: auto; min-height: calc(100vh - var(--topbar-height) - 48px); }
+}
+
+/* ── 반응형 — 모바일 (≤768px) ─────────────────────────── */
+@media (max-width: 768px) {
+  .sidebar {
+    transform: translateX(-100%);
+    transition: transform 0.25s ease;
+    width: 220px;
+  }
+  .sidebar.sidebar-open { transform: translateX(0); }
+  .sidebar-logo span,
+  .sidebar-nav a span:not(.nav-icon),
+  .sidebar-footer { display: initial; }
+  .sidebar-logo { padding: 18px 16px; text-align: left; }
+  .sidebar-logo h1 { font-size: 1.1rem; }
+  .sidebar-nav a { justify-content: flex-start; padding: 10px 16px; }
+  .sidebar-nav a .nav-icon { width: 22px; font-size: 1.1rem; }
+  .sidebar-backdrop { display: block; }
+  .main-area { margin-left: 0; }
+  .hamburger-btn { display: block; }
+  .topbar { padding: 0 12px; }
+  .content { padding: 12px; }
+  .split-view { grid-template-columns: 1fr; height: auto; }
+}
