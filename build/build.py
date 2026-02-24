@@ -27,12 +27,14 @@ SPEC_FILE = PROJECT_ROOT / "build" / "gm-ai-hub.spec"
 ISS_FILE = PROJECT_ROOT / "installer" / "gm-ai-hub.iss"
 
 
-def run(cmd: list[str], cwd: Path | None = None, check: bool = True) -> int:
+def run(
+    cmd: list[str], cwd: Path | None = None, check: bool = True, shell: bool = False,
+) -> int:
     """명령 실행 및 결과 출력."""
     print(f"\n{'='*60}")
     print(f"  실행: {' '.join(cmd)}")
     print(f"{'='*60}")
-    result = subprocess.run(cmd, cwd=cwd)
+    result = subprocess.run(cmd, cwd=cwd, shell=shell)
     if check and result.returncode != 0:
         print(f"\n  실패! (exit code {result.returncode})")
         sys.exit(result.returncode)
@@ -46,8 +48,9 @@ def step_frontend():
         print("  frontend/package.json 없음 — 건너뜀")
         return
 
-    run(["npm", "install"], cwd=FRONTEND_DIR)
-    run(["npx", "vite", "build"], cwd=FRONTEND_DIR)
+    # Windows에서 npm/npx는 .cmd 파일이므로 shell=True 필요
+    run(["npm", "install"], cwd=FRONTEND_DIR, shell=True)
+    run(["npx", "vite", "build"], cwd=FRONTEND_DIR, shell=True)
 
     dist = FRONTEND_DIR / "dist"
     if not (dist / "index.html").exists():
@@ -124,7 +127,7 @@ def step_installer():
         print("  인스톨러 생성을 건너뜁니다.")
         return
 
-    run([iscc, str(ISS_FILE)], cwd=PROJECT_ROOT / "installer")
+    run([iscc, str(ISS_FILE)], cwd=PROJECT_ROOT / "installer", shell=True)
     print("  인스톨러 생성 완료!")
 
 
