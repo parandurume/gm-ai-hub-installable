@@ -169,6 +169,7 @@ class ModelRegistry:
             param_size=param,
             ram_gb=max(4, param) if param else (sibling.ram_gb if sibling else 8),
             supports_thinking=thinking,
+            supports_embedding=sibling.supports_embedding if sibling else False,
             context_len=sibling.context_len if sibling else 32768,
             strengths=sibling.strengths if sibling else [],
             best_for=sibling.best_for if sibling else [],
@@ -203,7 +204,9 @@ class ModelRegistry:
                 candidates.sort(key=lambda x: x.param_size, reverse=True)
                 return candidates[0].id
 
-        return self._available[0].id if self._available else "qwen3:8b"
+        # Skip embedding-only models as generative fallback
+        generative = [m for m in self._available if not m.supports_embedding]
+        return generative[0].id if generative else "qwen3:8b"
 
     @staticmethod
     def _should_think(profile: ModelProfile | None, reasoning: str) -> bool:

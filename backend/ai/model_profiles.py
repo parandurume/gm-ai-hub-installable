@@ -1,4 +1,4 @@
-"""모델 프로파일 정의 (8개 빌트인 모델 ≤16 GB RAM + 동적 감지)."""
+"""모델 프로파일 정의 (9개 빌트인 모델 ≤16 GB RAM + 동적 감지)."""
 
 from __future__ import annotations
 
@@ -22,6 +22,7 @@ FAMILY_PATTERNS: list[tuple[str, str, bool]] = [
     ("hyperclovax", "hyperclovax", False),
     ("gemma", "gemma", False),
     ("mistral", "mistral", False),
+    ("nomic-embed", "nomic-embed", False),
 ]
 
 
@@ -49,6 +50,7 @@ class ModelProfile:
     ram_gb: int  # 최소 RAM (GB)
     supports_thinking: bool
     context_len: int
+    supports_embedding: bool = False
     strengths: list[str] = field(default_factory=list)
     best_for: list[str] = field(default_factory=list)
 
@@ -78,6 +80,7 @@ class ModelProfile:
             "param_size": self.param_size,
             "ram_gb": self.ram_gb,
             "supports_thinking": self.supports_thinking,
+            "supports_embedding": self.supports_embedding,
             "context_len": self.context_len,
             "strengths": self.strengths,
             "best_for": self.best_for,
@@ -172,5 +175,17 @@ BUILTIN_PROFILES: dict[str, ModelProfile] = {
         context_len=16384,
         strengths=["경량", "영어", "코드"],
         best_for=["classify", "summarize"],
+    ),
+    "nomic-embed-text:latest": ModelProfile(
+        id="nomic-embed-text:latest",
+        name="Nomic Embed Text",
+        family="nomic-embed",
+        param_size=0,
+        ram_gb=1,
+        supports_thinking=False,
+        supports_embedding=True,
+        context_len=8192,
+        strengths=["임베딩", "시맨틱검색", "벡터화"],
+        best_for=["semantic_search", "hybrid_search"],
     ),
 }
