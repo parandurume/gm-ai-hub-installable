@@ -60,8 +60,11 @@ export default function MeetingPage() {
   const [form, setForm] = useState({
     title: '',
     date: new Date().toISOString().slice(0, 10),
+    location: '',
     attendees: '',
     content: '',
+    decisions: '',
+    action_items: '',
     model: null,
   })
   const [result, setResult] = useState(null)
@@ -69,8 +72,12 @@ export default function MeetingPage() {
   const [recording, setRecording] = useState(false)
   const [transcribing, setTranscribing] = useState(false)
   const [recordSec, setRecordSec] = useState(0)
+  const [showDetails, setShowDetails] = useState(false)
+  const [copied, setCopied] = useState(false)
+  const [pathCopied, setPathCopied] = useState(false)
 
-  const [sttCached, setSttCached] = useState(null) // null=unknown, true/false
+  const [sttCached, setSttCached] = useState(null)
+  const [sttAvailable, setSttAvailable] = useState(null)
 
   const mediaRef = useRef(null)
   const chunksRef = useRef([])
@@ -78,33 +85,25 @@ export default function MeetingPage() {
   const fileInputRef = useRef(null)
   const toast = useToast()
 
-  // Check model cache status once on mount
   useEffect(() => {
     fetchJSON(API.meetingSttStatus)
-      .then(d => setSttCached(d.cached))
-      .catch(() => setSttCached(null))
+      .then(d => {
+        setSttAvailable(d.available !== false)
+        setSttCached(d.cached)
+      })
+      .catch(() => {
+        setSttAvailable(null)
+        setSttCached(null)
+      })
   }, [])
 
   function updateField(key, val) {
     setForm(f => ({ ...f, [key]: val }))
   }
 
-  // Show a one-time warning if the model hasn't been downloaded yet.
-  // Returns true if the user wants to proceed, false to abort.
-  async function confirmIfNotCached() {
-    if (sttCached) return true
-    return window.confirm(
-      '음성 인식 모델(약 1.5 GB)이 아직 설치되어 있지 않습니다.\n' +
-      '첫 번째 사용 시 인터넷에서 자동으로 다운로드됩니다.\n\n' +
-      '인터넷 연결을 확인하고 계속하시겠습니까?\n' +
-      '(다운로드 중에는 "음성 인식 중..." 메시지가 표시됩니다.)'
-    )
-  }
-
-  // ── Recording ───────────────────────────────────────────────
+  // ── Recording ──────────────────────────────────────────────────
 
   async function startRecording() {
-    if (!await confirmIfNotCached()) return
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
       const mr = new MediaRecorder(stream, { mimeType: 'audio/webm' })
@@ -115,7 +114,7 @@ export default function MeetingPage() {
         handleTranscribe(new Blob(chunksRef.current, { type: 'audio/webm' }))
       }
       mediaRef.current = mr
-      mr.start(500) // collect every 500ms for reliability
+      mr.start(500)
       setRecording(true)
       setRecordSec(0)
       timerRef.current = setInterval(() => setRecordSec(s => s + 1), 1000)
@@ -143,7 +142,7 @@ export default function MeetingPage() {
       const data = await res.json()
       if (data.text) {
         updateField('content', form.content ? form.content + '\n' + data.text : data.text)
-        setSttCached(true) // model is now cached — skip warning on future uses
+        setSttCached(true)
         toast('음성 인식 완료', 'success')
       }
     } catch (e) {
@@ -157,11 +156,10 @@ export default function MeetingPage() {
     const file = e.target.files[0]
     if (!file) return
     e.target.value = ''
-    if (!await confirmIfNotCached()) return
     handleTranscribe(file)
   }
 
-  // ── Meeting generation ──────────────────────────────────────
+  // ── Meeting generation ─────────────────────────────────────────
 
   async function handleGenerate() {
     if (!form.content.trim()) { toast('회의 내용을 입력하세요', 'warning'); return }
@@ -169,9 +167,12 @@ export default function MeetingPage() {
     try {
       const data = await postJSON(API.meeting, {
         title: form.title,
-        date: form.date,           // backend alias: meeting_date
-        attendees: form.attendees, // comma-separated string
+        date: form.date,
+        attendees: form.attendees,
         content: form.content,
+        location: form.location,
+        decisions: form.decisions,
+        action_items: form.action_items,
         model: form.model,
       })
       setResult(data)
@@ -183,82 +184,129 @@ export default function MeetingPage() {
     }
   }
 
+  async function handleCopy() {
+    if (!result?.summary) return
+    await navigator.clipboard.writeText(result.summary)
+    setCopied(true)
+    toast('텍스트 복사 완료', 'success')
+    setTimeout(() => setCopied(false), 2000)
+  }
+
+  async function handleCopyPath() {
+    if (!result?.path) return
+    await navigator.clipboard.writeText(result.path)
+    setPathCopied(true)
+    setTimeout(() => setPathCopied(false), 2000)
+  }
+
   const busy = recording || transcribing || loading
+  const sttDisabled = sttAvailable === false
 
   return (
     <div className="page-meeting">
-      <h2>회의록 작성</h2>
-
       <div className="split-view">
-        {/* ── 입력 패널 ── */}
-        <div className="panel" style={{ padding: 20, overflowY: 'auto' }}>
-          <div className="form-group">
-            <label>회의 제목</label>
-            <input
-              type="text"
-              value={form.title}
-              onChange={e => updateField('title', e.target.value)}
-              placeholder="예: 2026년 상반기 AI 도입 추진회의"
-            />
-          </div>
 
-          <div className="form-row">
-            <div className="form-group" style={{ flex: 1 }}>
-              <label>일자</label>
+        {/* ── 왼쪽: 입력 패널 ── */}
+        <div className="panel" style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+          <div className="panel-header">
+            <span>📝 회의록 작성</span>
+          </div>
+          <div className="panel-body" style={{ flex: 1, overflowY: 'auto' }}>
+
+            <div className="form-group">
+              <label>회의 제목</label>
               <input
-                type="date"
-                value={form.date}
-                onChange={e => updateField('date', e.target.value)}
+                type="text"
+                value={form.title}
+                onChange={e => updateField('title', e.target.value)}
+                placeholder="예: 2026년 상반기 AI 도입 추진회의"
               />
             </div>
-            <div className="form-group" style={{ flex: 2 }}>
+
+            <div className="form-row">
+              <div className="form-group" style={{ flex: 1 }}>
+                <label>일자</label>
+                <input
+                  type="date"
+                  value={form.date}
+                  onChange={e => updateField('date', e.target.value)}
+                />
+              </div>
+              <div className="form-group" style={{ flex: 1 }}>
+                <label>장소</label>
+                <input
+                  type="text"
+                  value={form.location}
+                  onChange={e => updateField('location', e.target.value)}
+                  placeholder="예: 3층 소회의실"
+                />
+              </div>
+            </div>
+
+            <div className="form-group">
               <label>참석자</label>
               <AttendeesTagInput
                 value={form.attendees}
                 onChange={v => updateField('attendees', v)}
               />
             </div>
-          </div>
 
-          {/* STT controls + textarea */}
-          <div className="form-group">
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
-              <label style={{ margin: 0 }}>회의 내용 / 메모</label>
-              <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-                {transcribing ? (
-                  <span style={{ fontSize: '0.8rem', color: 'var(--teal)' }}>음성 인식 중...</span>
-                ) : recording ? (
-                  <>
-                    <span style={{ fontSize: '0.8rem', color: '#dc2626', fontVariantNumeric: 'tabular-nums' }}>
-                      &#9679; {String(Math.floor(recordSec / 60)).padStart(2, '0')}:{String(recordSec % 60).padStart(2, '0')}
-                    </span>
+            {/* ── 회의 내용 + STT ── */}
+            <div className="form-group">
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+                <label style={{ margin: 0 }}>회의 내용 / 메모</label>
+                <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                  {form.content && !recording && !transcribing && (
                     <button
-                      className="btn btn-secondary"
-                      style={{ padding: '2px 10px', fontSize: '0.8rem' }}
-                      onClick={stopRecording}
+                      type="button"
+                      className="meeting-reset-btn"
+                      onClick={() => updateField('content', '')}
+                      title="내용 초기화"
                     >
-                      중지
+                      ✕ 초기화
                     </button>
-                  </>
+                  )}
+                </div>
+              </div>
+
+              {/* STT controls */}
+              <div className="stt-bar">
+                {sttDisabled ? (
+                  <div className="stt-unavailable-banner">
+                    ⚠ 음성 인식 모듈 없음 — 앱을 재설치하세요
+                  </div>
+                ) : transcribing ? (
+                  <span className="stt-status-label">
+                    <span className="spinner" style={{ width: 13, height: 13, borderWidth: 2 }} />
+                    음성 인식 중...
+                  </span>
+                ) : recording ? (
+                  <div className="stt-recording-active">
+                    <span className="stt-rec-dot">●</span>
+                    <span className="stt-timer">
+                      {String(Math.floor(recordSec / 60)).padStart(2, '0')}:{String(recordSec % 60).padStart(2, '0')}
+                    </span>
+                    <button className="btn btn-danger btn-sm" onClick={stopRecording}>
+                      ■ 중지
+                    </button>
+                  </div>
                 ) : (
-                  <>
+                  <div className="stt-buttons">
                     <button
-                      className="btn btn-secondary"
-                      style={{ padding: '2px 10px', fontSize: '0.8rem' }}
+                      className="btn btn-secondary btn-sm"
                       onClick={startRecording}
                       disabled={busy}
                       title="마이크로 녹음 후 자동 변환"
                     >
-                      &#127908; 녹음
+                      🎤 녹음
                     </button>
                     <button
-                      className="btn btn-secondary"
-                      style={{ padding: '2px 10px', fontSize: '0.8rem' }}
+                      className="btn btn-secondary btn-sm"
                       onClick={() => fileInputRef.current?.click()}
                       disabled={busy}
                       title="오디오 파일 업로드 (mp3 / wav / m4a / webm)"
                     >
-                      &#128193; 파일
+                      📁 파일
                     </button>
                     <input
                       ref={fileInputRef}
@@ -267,53 +315,159 @@ export default function MeetingPage() {
                       style={{ display: 'none' }}
                       onChange={handleAudioFile}
                     />
-                  </>
+                    {sttCached === false && (
+                      <span className="stt-cache-notice">
+                        ⚠ 첫 사용 시 ~1.5 GB 다운로드
+                      </span>
+                    )}
+                  </div>
                 )}
               </div>
+
+              <textarea
+                rows={9}
+                value={form.content}
+                onChange={e => updateField('content', e.target.value)}
+                placeholder="회의 중 논의된 내용을 자유롭게 입력하거나, 녹음 버튼으로 음성을 텍스트로 변환하세요..."
+                disabled={transcribing}
+              />
             </div>
-            <textarea
-              rows={10}
-              value={form.content}
-              onChange={e => updateField('content', e.target.value)}
-              placeholder="회의 중 논의된 내용을 자유롭게 입력하거나, 녹음 버튼으로 음성을 텍스트로 변환하세요..."
-              disabled={transcribing}
-            />
-          </div>
 
-          <div className="form-group">
-            <label>AI 모델</label>
-            <ModelSelector value={form.model} onChange={v => updateField('model', v)} task="meeting_minutes" />
-          </div>
+            {/* ── 추가 정보 (결정사항, 후속조치) ── */}
+            <div className="meeting-details-section">
+              <button
+                type="button"
+                className="meeting-details-toggle"
+                onClick={() => setShowDetails(v => !v)}
+              >
+                <span>{showDetails ? '▾' : '▸'} 추가 정보</span>
+                <span className="meeting-details-hint">결정사항, 후속조치</span>
+              </button>
+              {showDetails && (
+                <div className="meeting-details-body">
+                  <div className="form-group">
+                    <label>결정사항</label>
+                    <textarea
+                      rows={3}
+                      value={form.decisions}
+                      onChange={e => updateField('decisions', e.target.value)}
+                      placeholder="회의에서 결정된 사항을 입력하세요"
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label>후속조치</label>
+                    <textarea
+                      rows={3}
+                      value={form.action_items}
+                      onChange={e => updateField('action_items', e.target.value)}
+                      placeholder="담당자 및 기한 포함 후속조치를 입력하세요"
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
 
-          <button className="btn btn-primary" onClick={handleGenerate} disabled={busy}>
-            {loading ? 'AI 요약 중...' : 'AI 회의록 생성'}
-          </button>
+            <div className="form-group">
+              <label>AI 모델</label>
+              <ModelSelector value={form.model} onChange={v => updateField('model', v)} task="meeting_minutes" />
+            </div>
+
+            <button
+              className="btn btn-primary"
+              style={{ width: '100%', justifyContent: 'center' }}
+              onClick={handleGenerate}
+              disabled={busy}
+            >
+              {loading
+                ? <><span className="spinner" style={{ width: 13, height: 13, borderWidth: 2 }} /> AI 요약 중...</>
+                : 'AI 회의록 생성 ▶'}
+            </button>
+          </div>
         </div>
 
-        {/* ── 결과 패널 ── */}
-        <div className="panel" style={{ padding: 20, overflowY: 'auto' }}>
-          {result?.thinking && <ThinkingPanel content={result.thinking} />}
+        {/* ── 오른쪽: 결과 / 가이드 패널 ── */}
+        <div className="panel" style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
           {result ? (
-            <div className="preview-pane">
-              <div className="preview-header">
-                AI 회의록
-                {result.path && (
-                  <span style={{ fontSize: '0.8rem', color: 'var(--ink3)', marginLeft: 8 }}>
-                    {result.path}
-                  </span>
-                )}
+            <>
+              <div className="panel-header">
+                <span>AI 회의록</span>
+                <div style={{ display: 'flex', gap: 6 }}>
+                  <button className="btn btn-secondary btn-sm" onClick={handleCopy}>
+                    {copied ? '✓ 복사됨' : '복사'}
+                  </button>
+                  {result.path && (
+                    <button
+                      className="btn btn-secondary btn-sm"
+                      onClick={handleCopyPath}
+                      title={result.path}
+                    >
+                      {pathCopied ? '✓ 경로 복사됨' : '경로 복사'}
+                    </button>
+                  )}
+                </div>
               </div>
-              <div className="preview-body" style={{ whiteSpace: 'pre-wrap' }}>
-                {result.summary}
+              {result.path && (
+                <div className="meeting-result-path">
+                  💾 {result.path}
+                </div>
+              )}
+              <div className="panel-body" style={{ flex: 1, overflowY: 'auto' }}>
+                {result.thinking && <ThinkingPanel content={result.thinking} />}
+                <div className="meeting-result-text">
+                  {result.summary}
+                </div>
               </div>
-            </div>
+            </>
           ) : (
-            <div className="preview-empty">
-              <span style={{ fontSize: 48 }}>&#128203;</span>
-              <span>회의 내용을 입력하거나 녹음 후 AI 생성 버튼을 클릭하세요</span>
-            </div>
+            <>
+              <div className="panel-header">
+                <span>📋 작성 가이드</span>
+              </div>
+              <div className="panel-body" style={{ flex: 1, overflowY: 'auto' }}>
+                <div className="meeting-guide">
+                  <div className="meeting-guide-step">
+                    <div className="guide-step-num">1</div>
+                    <div className="guide-step-body">
+                      <div className="guide-step-title">기본 정보 입력</div>
+                      <div className="guide-step-desc">회의 제목, 일자, 장소, 참석자를 입력하세요.</div>
+                    </div>
+                  </div>
+                  <div className="meeting-guide-step">
+                    <div className="guide-step-num">2</div>
+                    <div className="guide-step-body">
+                      <div className="guide-step-title">회의 내용 기록</div>
+                      <div className="guide-step-desc">
+                        메모를 직접 입력하거나 🎤 <strong>녹음</strong> 버튼으로 음성을 텍스트로 자동 변환하세요.
+                        오디오 파일(mp3/wav/m4a)도 📁 <strong>파일</strong> 버튼으로 업로드할 수 있습니다.
+                      </div>
+                    </div>
+                  </div>
+                  <div className="meeting-guide-step">
+                    <div className="guide-step-num">3</div>
+                    <div className="guide-step-body">
+                      <div className="guide-step-title">AI 회의록 생성</div>
+                      <div className="guide-step-desc">
+                        내용이 100자 이상이면 AI가 공문서 형식으로 자동 정리합니다.
+                        결정사항·후속조치는 <strong>추가 정보</strong>에서 입력할 수 있습니다.
+                      </div>
+                    </div>
+                  </div>
+                  <div className="meeting-guide-step">
+                    <div className="guide-step-num">4</div>
+                    <div className="guide-step-body">
+                      <div className="guide-step-title">HWPX 파일 저장</div>
+                      <div className="guide-step-desc">
+                        한글(HWP) 문서로 작업 폴더에 자동 저장됩니다.
+                        생성 후 <strong>경로 복사</strong> 버튼으로 저장 위치를 확인하세요.
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </>
           )}
         </div>
+
       </div>
     </div>
   )

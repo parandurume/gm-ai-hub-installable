@@ -21,14 +21,14 @@ def _detect_hwp_tier() -> str:
 
 
 def _detect_environment() -> str:
-    """Detect runtime environment: govpc, laptop, or laptop_high_ram."""
+    """Detect runtime environment: govpc, desktop, or laptop."""
     import os
     if os.getenv("GOVPC_MODE", "false").lower() == "true":
         return "govpc"
     try:
         import psutil
         ram_gb = psutil.virtual_memory().total / (1024**3)
-        return "laptop_high_ram" if ram_gb >= 48 else "laptop"
+        return "desktop" if ram_gb >= 32 else "laptop"
     except ImportError:
         return "laptop"
 

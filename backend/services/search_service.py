@@ -98,7 +98,7 @@ class SearchService:
 
         async with get_db() as db:
             sql = (
-                "SELECT law_name, article, "
+                "SELECT law_name, article, content, "
                 "snippet(regulations_fts, 2, '<mark>', '</mark>', '...', 48) AS snippet, "
                 "rank "
                 "FROM regulations_fts "
@@ -111,6 +111,7 @@ class SearchService:
                     results.append({
                         "law_name": row["law_name"],
                         "article": row["article"],
+                        "content": row["content"],
                         "snippet": row["snippet"],
                         "score": abs(row["rank"]),
                     })

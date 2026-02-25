@@ -32,6 +32,7 @@
 
 ### 빌드 / 배포
 
+- [ ] 🔴 **v3.2.0 재빌드 및 재설치** — 절전 버그 수정 + 환경 감지 수정 + 법령검색 데이터(006) 반영을 위해 `python build/build.py` 실행 후 인스톨러 재배포 필요
 - [ ] 🔴 **PyInstaller spec 업데이트** — faster-whisper 추가에 따른 hidden imports:
 
   ```python
@@ -81,3 +82,6 @@
 - [x] 회의록 필드 버그 수정 (date alias, attendees 타입, summary 응답)
 - [x] Inno Setup 자동 설치 (winget)
 - [x] 빌드 시 실행 중인 앱 자동 종료 (`_kill_running_app`)
+- [x] **절전 복귀 후 앱 영구 불능 버그 수정** — `SQLite busy_timeout=5000` + 시작 시 `wal_checkpoint(TRUNCATE)`로 잔여 WAL 파일 정리 (`database.py`)
+- [x] **환경 감지 버그 수정** — `_detect_environment()`에서 삭제된 `laptop_high_ram` 프로필 반환 제거 → RAM ≥32 GB는 `desktop`, 미만은 `laptop` (`config.py`)
+- [x] **법령검색 시드 데이터 구축** — 국가 법령 9종 38조문 (migrations 004~005) + 광명시 자치법규 6종 91조문 (migration 006, PyMuPDF PDF 추출), FTS5 전문 검색 적용

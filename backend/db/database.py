@@ -25,6 +25,9 @@ async def init_db() -> None:
     async with aiosqlite.connect(db_path) as db:
         await db.execute("PRAGMA journal_mode=WAL")
         await db.execute("PRAGMA foreign_keys=ON")
+        await db.execute("PRAGMA busy_timeout=5000")
+        # 절전 복귀 후 불완전한 WAL 파일이 남아 있을 경우 체크포인트로 정리
+        await db.execute("PRAGMA wal_checkpoint(TRUNCATE)")
 
         # 마이그레이션 실행
         await _run_migrations(db)
@@ -68,6 +71,7 @@ async def get_db():
     db.row_factory = aiosqlite.Row
     try:
         await db.execute("PRAGMA foreign_keys=ON")
+        await db.execute("PRAGMA busy_timeout=5000")
         yield db
         await db.commit()
     except Exception:

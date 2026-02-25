@@ -6,6 +6,7 @@ FastAPI 서버를 서브프로세스로 시작하고 브라우저를 연다.
 
 from __future__ import annotations
 
+import ctypes
 import os
 import subprocess
 import sys
@@ -159,6 +160,24 @@ class TrayApp:
                 return
             time.sleep(1)
 
+    def _monitor_server_port(self):
+        """헬스 체크 기반 서버 감시 (프로세스를 소유하지 않는 경우).
+
+        이전 세션에서 서버가 남아 있을 때 트레이가 이를 인계받은 뒤 사용.
+        서버가 응답하지 않으면 트레이를 자동 종료한다.
+        """
+        while self._running:
+            time.sleep(3)
+            try:
+                r = httpx.get(_HEALTH_URL, timeout=2)
+                if r.status_code != 200:
+                    break
+            except Exception:
+                break
+        self._running = False
+        if self._icon:
+            self._icon.stop()
+
     def restart_server(self):
         """서버 재시작."""
         self.stop_server()
@@ -199,6 +218,21 @@ class TrayApp:
 
         # 서버 시작 + 브라우저 열기를 백그라운드에서 실행
         def startup():
+            # 이전 세션에서 서버가 이미 실행 중인지 확인 (고아 서버 인계)
+            server_adopted = False
+            try:
+                r = httpx.get(_HEALTH_URL, timeout=1.5)
+                if r.status_code == 200:
+                    server_adopted = True
+            except Exception:
+                pass
+
+            if server_adopted:
+                self._running = True
+                self.open_browser()
+                threading.Thread(target=self._monitor_server_port, daemon=True).start()
+                return
+
             if self.start_server():
                 if self.wait_for_server():
                     self.open_browser()
@@ -213,23 +247,35 @@ class TrayApp:
         icon.run()
 
 
+_MUTEX_NAME = "Global\\GM-AI-Hub-Tray-SingleInstance"
+
+
 def main():
     """엔트리 포인트.
 
-    이미 실행 중인 인스턴스가 있으면 브라우저만 열고 종료.
-    - 브라우저 탭을 닫은 뒤 재실행 → 브라우저만 다시 열림
-    - 두 번째 아이콘 클릭 → 두 번째 tray·server 인스턴스 방지
+    Windows 명명 뮤텍스로 트레이 단일 인스턴스를 보장한다.
+    - 트레이가 이미 살아 있으면 → 브라우저만 열고 종료
+    - 트레이가 없고 서버만 남아 있으면 → 트레이를 새로 띄우고 서버를 인계
+    - 둘 다 없으면 → 트레이 + 서버 정상 시작
     """
-    try:
-        r = httpx.get(_HEALTH_URL, timeout=1.5)
-        if r.status_code == 200:
+    # 뮤텍스 취득 시도 (Windows 전용)
+    _mutex_handle = None
+    if sys.platform == "win32":
+        _mutex_handle = ctypes.windll.kernel32.CreateMutexW(None, True, _MUTEX_NAME)
+        if ctypes.windll.kernel32.GetLastError() == 183:  # ERROR_ALREADY_EXISTS
+            # 다른 트레이 인스턴스가 실행 중 → 브라우저만 열고 종료
             webbrowser.open(_URL)
             return
-    except Exception:
-        pass
 
+    # 뮤텍스를 취득했으므로 이 프로세스가 트레이를 담당
+    # startup() 내부에서 고아 서버를 자동으로 감지하고 인계한다
     app = TrayApp()
     app.run()
+
+    # 트레이 종료 시 뮤텍스 해제
+    if _mutex_handle and sys.platform == "win32":
+        ctypes.windll.kernel32.ReleaseMutex(_mutex_handle)
+        ctypes.windll.kernel32.CloseHandle(_mutex_handle)
 
 
 if __name__ == "__main__":

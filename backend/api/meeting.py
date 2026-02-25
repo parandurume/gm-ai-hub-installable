@@ -24,14 +24,22 @@ _registry = ModelRegistry(settings.OLLAMA_BASE_URL)
 async def stt_status():
     """STT 모델 캐시 상태 확인.
 
-    - cached: 모델이 로컬에 있어 즉시 사용 가능
+    - available: faster-whisper 라이브러리가 설치되어 있는지 여부
+    - cached: 모델 가중치가 로컬 캐시에 있어 즉시 사용 가능한지 여부
     - cached=false: 첫 사용 시 ~1.5 GB 다운로드 필요
     """
     from backend.services.stt_service import stt_service
 
+    available = True
+    try:
+        import faster_whisper  # noqa: F401
+    except ImportError:
+        available = False
+
     return {
         "model": stt_service._model_size,
-        "cached": stt_service.is_model_cached(),
+        "available": available,
+        "cached": stt_service.is_model_cached() if available else False,
         "loaded": stt_service._model is not None,
     }
 

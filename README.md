@@ -1,6 +1,6 @@
 # GM-AI-Hub Desktop
 
-> 광명시청 AI 통합 공문서 시스템 — 설치형 Windows 데스크톱 앱
+> 광명시청 AI 통합 공문서 시스템 — 설치형 Windows 데스크톱 앱 (v3.2.0)
 
 모든 AI 처리는 **로컬 PC**에서 수행됩니다. 문서·음성 데이터가 외부 서버로 전송되지 않습니다.
 
@@ -15,7 +15,7 @@
 | AI 채팅 | 스트리밍 대화, Thinking 모드, 웹 URL 자동 요약 |
 | 민원 답변 | 민원 유형 분류 → 답변 초안 생성 |
 | 문서 검색 | 키워드·벡터 하이브리드 검색 |
-| 법령 검색 | 광명시 규정 전문 검색 |
+| 법령 검색 | 국가 법령 9종 + 광명시 자치법규 6종 전문 검색 (FTS5) |
 | PII 관리 | 개인정보 자동 탐지 및 마스킹 |
 | 문서 비교 | 두 문서 차이점 시각화 |
 | 파일 관리 | 작업 폴더 파일 브라우저 |
@@ -30,7 +30,7 @@ Frontend   React 18 + Vite  (SPA, localhost:8080)
 Backend    FastAPI + uvicorn (Python 3.11)
 AI Engine  Ollama (로컬 LLM, 기본 포트 11434)
 STT        faster-whisper medium 모델 (로컬 CPU)
-DB         SQLite + aiosqlite (WAL 모드)
+DB         SQLite + aiosqlite (WAL 모드, FTS5 법령 검색)
 Bundle     PyInstaller → Inno Setup 6
 ```
 
@@ -88,9 +88,11 @@ gm-ai-hub-app/
 ├── backend/
 │   ├── api/           # FastAPI 라우터
 │   ├── ai/            # LLM 클라이언트, 파이프라인, 모델 레지스트리
-│   ├── db/            # SQLite 초기화 및 마이그레이션
+│   ├── db/
+│   │   ├── database.py        # SQLite 초기화 (WAL 모드)
+│   │   └── migrations/        # SQL 마이그레이션 (001~006)
 │   ├── models/        # Pydantic 요청/응답 모델
-│   ├── services/      # hwpx, stt, pii 등 서비스 레이어
+│   ├── services/      # hwpx, stt, pii, 법령검색 등 서비스 레이어
 │   └── main.py        # uvicorn 진입점
 ├── launcher/
 │   └── tray.py        # 시스템 트레이 런처 (pystray)
@@ -106,7 +108,9 @@ gm-ai-hub-app/
 │   └── gm-ai-hub.spec # PyInstaller 스펙
 ├── installer/
 │   └── gm-ai-hub.iss  # Inno Setup 스크립트
-├── migrations/        # SQLite 마이그레이션 SQL
+├── data/
+│   └── regulations/   # 법령 원본 PDF 및 추출 텍스트
+├── scripts/           # 유틸리티 스크립트
 └── tests/             # pytest 테스트
 ```
 

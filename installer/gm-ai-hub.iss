@@ -2,7 +2,7 @@
 ; 실행: ISCC installer\gm-ai-hub.iss
 
 #define MyAppName "GM-AI-Hub"
-#define MyAppVersion "3.0.1"
+#define MyAppVersion "3.4.0"
 #define MyAppPublisher "GM-AI-Hub Project"
 #define MyAppURL "http://127.0.0.1:8080"
 #define MyAppExeName "GM-AI-Hub.exe"
@@ -33,6 +33,7 @@ Name: "korean"; MessagesFile: "compiler:Languages\Korean.isl"
 
 [Tasks]
 Name: "desktopicon"; Description: "바탕화면에 바로가기 만들기"; GroupDescription: "추가 아이콘:"; Flags: unchecked
+Name: "downloadstt"; Description: "음성 인식(STT) 모델 다운로드 — 약 1.5 GB, 인터넷 연결 필요"; GroupDescription: "기능 설치 (선택):"; Flags: unchecked
 
 [Files]
 ; PyInstaller 출력 폴더 전체 복사
@@ -44,6 +45,8 @@ Name: "{group}\{#MyAppName} 제거"; Filename: "{uninstallexe}"
 Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; Tasks: desktopicon
 
 [Run]
+; STT 모델 다운로드 (선택 작업 체크 시에만 실행)
+Filename: "{app}\gm-hub-server.exe"; Parameters: "--download-stt"; Description: "음성 인식 모델 다운로드 중..."; Flags: waituntilterminated; Tasks: downloadstt
 ; 설치 후 앱 실행 옵션
 Filename: "{app}\{#MyAppExeName}"; Description: "{#MyAppName} 실행"; Flags: nowait postinstall skipifsilent shellexec
 

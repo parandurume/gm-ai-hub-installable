@@ -39,8 +39,8 @@ class SttService:
                 from faster_whisper import WhisperModel  # noqa: PLC0415
             except ImportError as exc:
                 raise RuntimeError(
-                    "faster-whisper가 설치되어 있지 않습니다. "
-                    "'pip install faster-whisper' 를 실행하세요."
+                    "음성 인식 모듈을 불러올 수 없습니다. "
+                    "앱을 재설치하거나 관리자에게 문의하세요."
                 ) from exc
 
             log.info("STT 모델 로드 중", model=self._model_size)

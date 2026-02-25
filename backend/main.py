@@ -91,5 +91,25 @@ def start():
         )
 
 
+def download_stt_model():
+    """STT 모델 가중치를 HuggingFace Hub에서 다운로드."""
+    import sys
+
+    print("STT 음성 인식 모델 다운로드 중... (약 1.5 GB, 인터넷 필요)", flush=True)
+    try:
+        from backend.services.stt_service import SttService
+
+        SttService()._get_model()
+        print("STT 모델 다운로드 완료.", flush=True)
+    except Exception as exc:
+        print(f"다운로드 실패: {exc}", flush=True)
+        sys.exit(1)
+
+
 if __name__ == "__main__":
-    start()
+    import sys
+
+    if "--download-stt" in sys.argv:
+        download_stt_model()
+    else:
+        start()
