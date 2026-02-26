@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(\"/c/Users/InheeLEE/AppData/Local/Programs/Python/Python313/python.exe\" -m pip install \"pyinstaller>=6.0\")",
+      "WebFetch(domain:github.com)",
+      "Bash(\"/c/Users/InheeLEE/AppData/Local/Programs/Python/Python313/python.exe\" build/build.py --skip-tests --skip-installer)",
+      "Bash(\"/c/Users/InheeLEE/AppData/Local/Programs/Python/Python313/python.exe\" -c \"import pystray; import os, pystray._base; print\\(dir\\(pystray\\)\\); import importlib; import pkgutil; [print\\(m.name\\) for m in pkgutil.iter_modules\\(pystray.__path__, pystray.__name__ + ''.''\\)]\")"
+    ],
+    "additionalDirectories": [
+      "d:\\OneDrive - Parandurume\\dev\\gm-ai-hub-app"
+    ]
+  }
+}

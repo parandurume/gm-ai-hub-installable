@@ -7,6 +7,40 @@
 
 ## v3.x — 다음 릴리스
 
+### UX 감사 — AI 세션 피드백 및 사용성 개선 (2026-02-27)
+
+> UX 에이전트 전체 감사 결과. 현재 점수 7.0/10 → 목표 8.8/10.
+> 핵심 문제: AI 세션 중 진행 상태 피드백 부재 ("화면이 깜깜하다")
+
+#### Sprint 1 — Quick Wins (~2일)
+
+- [ ] 🔴 **MeetingPage: AI 생성 중 피드백 없음** — `handleGenerate()`가 plain fetch로 15-60초 대기. 단계별 진행 표시(Phase labels) 추가 (`MeetingPage.jsx`)
+- [ ] 🔴 **GianmunPage: 첫 토큰 전 빈 화면** — `generating=true && preview===''`일 때 skeleton loader 추가 (`GianmunPage.jsx`)
+- [ ] 🔴 **ChatPage: 경과 시간 표시** — "응답 준비 중..." 상태에 elapsed timer 추가, 15초 후 힌트 표시 (`ChatPage.jsx`)
+- [ ] 🟡 **FilesPage: `window.confirm()` → ConfirmModal** — ChatPage는 수정됨, FilesPage 미적용 (`FilesPage.jsx:34`)
+- [ ] 🟡 **ChatPage: AI 메시지 복사 버튼** — assistant 메시지에 클립보드 복사 버튼 추가 (`ChatPage.jsx`)
+- [ ] 🟡 **ComplaintPage: 글자 수 카운터** — 민원 내용 textarea에 3000자 제한 + 카운터 (`ComplaintPage.jsx`)
+- [ ] 🟡 **에러 메시지 개선 (전체)** — 일반적 "실패" → 원인+해결 안내로 변경 (전체 페이지)
+- [ ] 🟡 **SetupWizard: 레이블 스테퍼 + Ollama 연결 강제** — 단계 번호+이름 표시, 미연결 시 다음 단계 차단 (`SetupWizard.jsx`)
+- [ ] 🔵 **SampleManager: `var(--bg2)` → `var(--paper2)`** — 미정의 CSS 변수 수정 (`SampleManager.jsx:351`)
+- [ ] 🔵 **ThinkingPanel: 펼침/접힘 애니메이션** — CSS transition 추가 (`components.css`)
+- [ ] 🔵 **Guard chip 등장 애니메이션** — fade+scale stagger 효과 (`components.css`)
+
+#### Sprint 2 — Core Improvements (~1주)
+
+- [ ] 🔴 **Topbar: 글로벌 AI-Busy 표시** — AiBusyContext 생성, 페이지 이동 시에도 AI 처리 중 표시 (`Topbar.jsx`, `App.jsx`)
+- [ ] 🔴 **MeetingPage: SSE 스트리밍 전환** — GianmunPage와 동일한 스트리밍 패턴으로 전환 (backend + `MeetingPage.jsx`)
+- [ ] 🟡 **Dashboard: 최근 작업 목록** — 최근 문서 10개 표시 (`Dashboard.jsx`)
+- [ ] 🟡 **DiffPage: 줄 번호 + 변경 요약** — 비개발자 가독성 향상 (`DiffPage.jsx`)
+- [ ] 🟡 **Topbar: Ollama 폴링 주기 단축** — 30초 → 10초, AI 에러 시 즉시 재확인 (`Topbar.jsx`)
+
+#### Strategic Enhancements (향후)
+
+- [ ] 🟡 **법령검색 → AI 채팅 연결** — 조문에 "AI에게 물어보기" 버튼, ChatPage로 이동 + 프롬프트 자동 입력
+- [ ] 🟡 **GianmunPage: 인라인 미리보기 편집** — preview pane에 편집 모드 토글
+- [ ] 🟡 **PII 검사 보고서 내보내기** — HWPX 형식 감사 기록 생성
+- [ ] 🟡 **SetupWizard: 인앱 모델 다운로드** — step 3에서 SSE pull-stream으로 모델 다운로드
+
 ### STT / 회의록
 
 - [ ] 🔴 **STT PyInstaller 패키징** — `faster_whisper`, `ctranslate2` hidden imports를 `build/gm-ai-hub.spec`에 추가하고 `.pyd`/`.dll` 바이너리 포함 확인
