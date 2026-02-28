@@ -51,11 +51,16 @@
 
 ### AI 기능
 
+- [ ] 🔴 **법제처 Open API 연동** — 인터넷 접속 가능 시 법제처 Open API(law.go.kr)로 법령 검색. 오프라인 시 기존 로컬 FTS5 검색 자동 폴백. `backend/api/regulation.py`에 API 클라이언트 추가, 설정에서 API 키 입력
 - [ ] 🔴 **HyperCLOVA X OmniServe 연동** — NAVER Cloud OmniServe API(OpenAI 호환) 옵션 추가. `backend/ai/client.py`에 provider 선택 로직 구현. 인터넷 연결 시 사용 가능한 고성능 한국어 모델.
 - [x] 🟡 **기안문 작성에 내 정보 자동 입력** — `draft.py`에 `_load_user_context()` 추가, AI 프롬프트에 부서명·담당자명 자동 주입
 - [x] 🟡 **민원 답변에 내 정보 반영** — `complaint.py`에 `_load_user_context()` 추가, AI 프롬프트 + HWPX "담당자" 필드에 자동 삽입
 - [x] 🟡 **AI 채팅 히스토리 저장** — SQLite `chat_sessions`+`chat_messages` 테이블, 세션 CRUD API, 프론트엔드 세션 바 자동저장/불러오기
 - [ ] 🔵 **RAG 개선** — nomic-embed-text 임베딩 기반 문서 검색을 벡터 DB(ChromaDB)로 전환
+
+### STT / 회의록 UX
+
+- [ ] 🟡 **회의록 저장 폴더 선택** — 회의록 HWPX 내보내기 시 저장 폴더를 사용자가 지정할 수 있도록 MeetingPage에 폴더 선택 UI 추가. 기본값은 `WORKING_DIR/meetings/`, 설정에서 기본 폴더 변경 가능
 
 ### 설정 / UX
 
@@ -63,6 +68,7 @@
 - [x] 🟡 **작업 폴더 선택 다이얼로그** — FolderPicker 컴포넌트로 교체 (설정 > 일반 탭)
 - [x] 🔵 **다크 모드** — `[data-theme="dark"]` CSS 변수 오버라이드, `useTheme` 훅 + Topbar 토글 버튼, localStorage 지속
 - [ ] 🔵 **앱 자동 업데이트** — 버전 체크 + 새 인스톨러 다운로드 알림
+- [ ] 🟡 **사용자 가이드 (앱 투어)** — 최초 실행 또는 도움말 메뉴에서 주요 기능을 단계별로 안내하는 인앱 가이드. 각 페이지의 핵심 UI 요소를 하이라이트하며 사용법 설명 (기안문 작성 → 회의록 → 채팅 → 민원 순서). react-joyride 등 투어 라이브러리 활용
 
 ### 빌드 / 배포
 
