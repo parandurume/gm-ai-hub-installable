@@ -5,7 +5,7 @@ const NAV_GROUPS = [
   {
     label: '문서 작성',
     items: [
-      { to: '/gianmun',   icon: '✍️',  label: '기안문 작성' },
+      { to: '/draft',     icon: '✍️',  label: '기안문 작성' },
       { to: '/meeting',   icon: '📋', label: '회의록' },
       { to: '/complaint', icon: '📨', label: '민원 답변' },
     ],
@@ -34,7 +34,7 @@ export default memo(function Sidebar({ open, onClose }) {
     <nav className={`sidebar ${open ? 'sidebar-open' : ''}`}>
       <div className="sidebar-logo">
         <h1>GM-AI-Hub</h1>
-        <span>광명시 AI 공문서 시스템</span>
+        <span>AI 공문서 시스템</span>
       </div>
 
       {/* Dashboard always first, ungrouped */}

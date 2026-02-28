@@ -81,6 +81,19 @@ async def get_db():
         await db.close()
 
 
+async def get_setting(key: str, default: str = "") -> str:
+    """설정 테이블에서 단일 값 조회."""
+    try:
+        async with get_db() as db:
+            async with db.execute(
+                "SELECT value FROM settings WHERE key = ?", (key,)
+            ) as cursor:
+                row = await cursor.fetchone()
+        return row["value"] if row else default
+    except Exception:
+        return default
+
+
 def get_db_sync() -> sqlite3.Connection:
     """동기 DB 연결 (스크립트 등에서 사용)."""
     conn = sqlite3.connect(str(settings.DB_PATH))

@@ -73,6 +73,9 @@ class SttService:
         """
         model = self._get_model()
 
+        # "auto" → None (faster-whisper는 None일 때 자동 감지)
+        lang = None if language == "auto" else language
+
         # faster-whisper는 파일 경로를 요구하므로 임시 파일 사용
         suffix = ".webm"  # MediaRecorder 기본 포맷; wav/mp3/m4a도 동작
         with tempfile.NamedTemporaryFile(suffix=suffix, delete=False) as tmp:
@@ -82,7 +85,7 @@ class SttService:
         try:
             segments, info = model.transcribe(
                 tmp_path,
-                language=language,
+                language=lang,
                 beam_size=5,
                 vad_filter=True,  # 무음 구간 자동 제거
                 vad_parameters={"min_silence_duration_ms": 500},

@@ -1,4 +1,4 @@
-"""기안문 본문 생성 파이프라인."""
+"""공문서 초안(Draft) 본문 생성 파이프라인."""
 
 from __future__ import annotations
 
@@ -7,12 +7,12 @@ from datetime import date
 import dspy
 
 from backend.ai.guards import DateGuard
-from backend.ai.signatures.document_sigs import GenerateGianmunBody
+from backend.ai.signatures.document_sigs import GenerateDraftBody
 
 
-class GianmunBodyPipeline(dspy.Module):
+class DraftBodyPipeline(dspy.Module):
     def __init__(self):
-        self.generate = dspy.ChainOfThought(GenerateGianmunBody)
+        self.generate = dspy.ChainOfThought(GenerateDraftBody)
 
     def forward(
         self,

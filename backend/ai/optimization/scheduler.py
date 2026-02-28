@@ -7,7 +7,7 @@ from datetime import date
 from backend.db.database import get_db
 
 OPTIMIZATION_SCHEDULE = {
-    "gianmun": {"min_new_docs": 20, "max_interval_days": 30},
+    "draft": {"min_new_docs": 20, "max_interval_days": 30},
     "docent": {"min_new_docs": 5, "max_interval_days": 90},
     "complaint": {"min_new_docs": 30, "max_interval_days": 14},
     "meeting": {"min_new_docs": 10, "max_interval_days": 60},

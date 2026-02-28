@@ -21,8 +21,8 @@ def register_routes(app: FastAPI) -> None:
         pass
 
     try:
-        from backend.api.gianmun import router as gianmun_router
-        app.include_router(gianmun_router)
+        from backend.api.draft import router as draft_router
+        app.include_router(draft_router)
     except ImportError:
         pass
 

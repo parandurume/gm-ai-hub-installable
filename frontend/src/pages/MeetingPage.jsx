@@ -1,8 +1,9 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
-import { postJSON, fetchJSON, API } from '../utils/api'
+import { fetchJSON, postJSON, API, aiErrorMessage } from '../utils/api'
 import ModelSelector from '../components/ModelSelector'
 import ThinkingPanel from '../components/ThinkingPanel'
 import { useToast } from '../hooks/useToast'
+import { useAiBusy } from '../hooks/useAiBusy'
 
 /** Pill-style tag input for attendees. Syncs to a comma-separated string. */
 function AttendeesTagInput({ value, onChange }) {
@@ -76,6 +77,8 @@ export default function MeetingPage() {
   const [copied, setCopied] = useState(false)
   const [pathCopied, setPathCopied] = useState(false)
 
+  const [streamingSummary, setStreamingSummary] = useState('')
+  const [streamingThinking, setStreamingThinking] = useState('')
   const [sttCached, setSttCached] = useState(null)
   const [sttAvailable, setSttAvailable] = useState(null)
 
@@ -84,6 +87,7 @@ export default function MeetingPage() {
   const timerRef = useRef(null)
   const fileInputRef = useRef(null)
   const toast = useToast()
+  const { setBusy, clearBusy } = useAiBusy()
 
   useEffect(() => {
     fetchJSON(API.meetingSttStatus)
@@ -144,6 +148,13 @@ export default function MeetingPage() {
         updateField('content', form.content ? form.content + '\n' + data.text : data.text)
         setSttCached(true)
         toast('음성 인식 완료', 'success')
+        // Auto PII scan on transcription result
+        try {
+          const pii = await postJSON(API.piiScanText, { text: data.text })
+          if (!pii.passed) {
+            toast(`주의: 음성 인식 결과에서 개인정보 ${pii.total_found}건 감지됨`, 'warning')
+          }
+        } catch { /* PII scan failure is non-critical */ }
       }
     } catch (e) {
       toast(`음성 인식 실패: ${e.message}`, 'error')
@@ -164,23 +175,78 @@ export default function MeetingPage() {
   async function handleGenerate() {
     if (!form.content.trim()) { toast('회의 내용을 입력하세요', 'warning'); return }
     setLoading(true)
+    setBusy('회의록 생성 중...')
+    setResult(null)
+    setStreamingSummary('')
+    setStreamingThinking('')
+
+    let fullSummary = ''
+    let fullThinking = ''
+    let resultPath = ''
+
     try {
-      const data = await postJSON(API.meeting, {
-        title: form.title,
-        date: form.date,
-        attendees: form.attendees,
-        content: form.content,
-        location: form.location,
-        decisions: form.decisions,
-        action_items: form.action_items,
-        model: form.model,
+      const res = await fetch(API.meetingStream, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title: form.title,
+          date: form.date,
+          attendees: form.attendees,
+          content: form.content,
+          location: form.location,
+          decisions: form.decisions,
+          action_items: form.action_items,
+          model: form.model,
+        }),
       })
-      setResult(data)
+
+      if (!res.ok) {
+        let detail = ''
+        try { const body = await res.json(); detail = body.detail || '' } catch {}
+        throw Object.assign(new Error(detail || `HTTP ${res.status}`), { status: res.status })
+      }
+
+      const reader = res.body.getReader()
+      const decoder = new TextDecoder()
+      let buffer = ''
+
+      while (true) {
+        const { done, value } = await reader.read()
+        if (done) break
+        buffer += decoder.decode(value, { stream: true })
+        const lines = buffer.split('\n')
+        buffer = lines.pop()
+        for (const line of lines) {
+          if (line.startsWith('data: ')) {
+            try {
+              const ev = JSON.parse(line.slice(6))
+              if (ev.type === 'token') {
+                fullSummary += ev.content
+                setStreamingSummary(s => s + ev.content)
+              } else if (ev.type === 'thinking') {
+                fullThinking += ev.content
+                setStreamingThinking(t => t + ev.content)
+              } else if (ev.type === 'done') {
+                resultPath = ev.path || ''
+              } else if (ev.type === 'error') {
+                toast(ev.message, 'error')
+              }
+            } catch {}
+          }
+        }
+      }
+
+      setResult({
+        summary: fullSummary || form.content,
+        thinking: fullThinking || null,
+        path: resultPath,
+      })
       toast('회의록 생성 완료', 'success')
-    } catch {
-      toast('회의록 생성 실패', 'error')
+    } catch (err) {
+      toast(aiErrorMessage('회의록 생성', err), 'error')
     } finally {
       setLoading(false)
+      clearBusy()
     }
   }
 
@@ -387,34 +453,43 @@ export default function MeetingPage() {
 
         {/* ── 오른쪽: 결과 / 가이드 패널 ── */}
         <div className="panel" style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-          {result ? (
+          {(loading || result) ? (
             <>
               <div className="panel-header">
-                <span>AI 회의록</span>
-                <div style={{ display: 'flex', gap: 6 }}>
-                  <button className="btn btn-secondary btn-sm" onClick={handleCopy}>
-                    {copied ? '✓ 복사됨' : '복사'}
-                  </button>
-                  {result.path && (
-                    <button
-                      className="btn btn-secondary btn-sm"
-                      onClick={handleCopyPath}
-                      title={result.path}
-                    >
-                      {pathCopied ? '✓ 경로 복사됨' : '경로 복사'}
+                <span>{loading ? 'AI 회의록 생성 중...' : 'AI 회의록'}</span>
+                {!loading && result && (
+                  <div style={{ display: 'flex', gap: 6 }}>
+                    <button className="btn btn-secondary btn-sm" onClick={handleCopy}>
+                      {copied ? '✓ 복사됨' : '복사'}
                     </button>
-                  )}
-                </div>
+                    {result.path && (
+                      <button
+                        className="btn btn-secondary btn-sm"
+                        onClick={handleCopyPath}
+                        title={result.path}
+                      >
+                        {pathCopied ? '✓ 경로 복사됨' : '경로 복사'}
+                      </button>
+                    )}
+                  </div>
+                )}
+                {loading && <span className="spinner" style={{ width: 16, height: 16, borderWidth: 2 }} />}
               </div>
-              {result.path && (
+              {result?.path && (
                 <div className="meeting-result-path">
                   💾 {result.path}
                 </div>
               )}
               <div className="panel-body" style={{ flex: 1, overflowY: 'auto' }}>
-                {result.thinking && <ThinkingPanel content={result.thinking} />}
+                <ThinkingPanel content={result?.thinking || streamingThinking} />
                 <div className="meeting-result-text">
-                  {result.summary}
+                  {result?.summary || streamingSummary || (
+                    <div className="skeleton-loader">
+                      <div className="skeleton-line" />
+                      <div className="skeleton-line" />
+                      <div className="skeleton-line" />
+                    </div>
+                  )}
                 </div>
               </div>
             </>

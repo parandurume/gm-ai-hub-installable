@@ -1,7 +1,8 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { fetchJSON, postJSON, API } from '../utils/api'
 
 const STEPS = ['welcome', 'ollama', 'models', 'info', 'ready']
+const STEP_LABELS = ['환영', 'Ollama', '모델', '정보', '완료']
 
 export default function SetupWizard() {
   const [step, setStep] = useState(0)
@@ -14,8 +15,11 @@ export default function SetupWizard() {
     ollama_model: 'gpt-oss:20b',
   })
   const [saving, setSaving] = useState(false)
+  const [pullState, setPullState] = useState({})
+  const pullEsRef = useRef({})
 
   const currentStep = STEPS[step]
+  const ollamaBlocked = currentStep === 'ollama' && !ollamaStatus?.connected
   const canNext = step < STEPS.length - 1
   const canPrev = step > 0
 
@@ -36,6 +40,53 @@ export default function SetupWizard() {
       checkOllama()
     }
   }, [step])
+
+  // Cleanup EventSource connections on unmount
+  useEffect(() => {
+    return () => {
+      Object.values(pullEsRef.current).forEach(es => es.close())
+    }
+  }, [])
+
+  function handlePull(modelId) {
+    setPullState(s => ({ ...s, [modelId]: { active: true, status: '연결 중...', pct: 0, error: null } }))
+    const es = new EventSource(`${API.modelsPullStream}?model=${encodeURIComponent(modelId)}`)
+    pullEsRef.current[modelId] = es
+    es.onmessage = (e) => {
+      if (e.data === '[DONE]') {
+        es.close()
+        delete pullEsRef.current[modelId]
+        setPullState(s => ({ ...s, [modelId]: { active: false, status: '완료', pct: 100, error: null } }))
+        checkOllama()
+        return
+      }
+      try {
+        const d = JSON.parse(e.data)
+        if (d.error) {
+          es.close()
+          delete pullEsRef.current[modelId]
+          setPullState(s => ({ ...s, [modelId]: { active: false, status: '오류', pct: 0, error: d.error } }))
+          return
+        }
+        const pct = d.total ? Math.round((d.completed || 0) / d.total * 100) : null
+        setPullState(s => ({
+          ...s,
+          [modelId]: { active: true, status: d.status || '다운로드 중...', pct: pct ?? s[modelId]?.pct ?? 0, error: null },
+        }))
+      } catch {}
+    }
+    es.onerror = () => {
+      es.close()
+      delete pullEsRef.current[modelId]
+      setPullState(s => ({ ...s, [modelId]: { active: false, status: '연결 오류', pct: 0, error: '연결이 끊어졌습니다' } }))
+    }
+  }
+
+  function handleCancelPull(modelId) {
+    const es = pullEsRef.current[modelId]
+    if (es) { es.close(); delete pullEsRef.current[modelId] }
+    setPullState(s => ({ ...s, [modelId]: { active: false, status: '', pct: 0, error: null } }))
+  }
 
   async function handleComplete() {
     setSaving(true)
@@ -59,9 +110,12 @@ export default function SetupWizard() {
     <div className="setup-wizard">
       <div className="setup-container">
         {/* Progress */}
-        <div className="setup-progress">
+        <div className="setup-stepper">
           {STEPS.map((s, i) => (
-            <div key={s} className={`setup-step-dot ${i <= step ? 'active' : ''} ${i === step ? 'current' : ''}`} />
+            <div key={s} className={`setup-stepper-item ${i <= step ? 'active' : ''} ${i === step ? 'current' : ''}`}>
+              <div className="setup-stepper-num">{i + 1}</div>
+              <div className="setup-stepper-label">{STEP_LABELS[i]}</div>
+            </div>
           ))}
         </div>
 
@@ -157,17 +211,33 @@ export default function SetupWizard() {
                 {ollamaStatus.missing_models?.length > 0 && (
                   <div className="setup-model-list" style={{ marginTop: 16 }}>
                     <h4>권장 모델 (미설치)</h4>
-                    {ollamaStatus.missing_models.map(m => (
-                      <div key={m.id} className="setup-model-item missing">
-                        <div>
-                          <strong>{m.name}</strong>
-                          <span className="setup-model-desc">{m.description}</span>
+                    {ollamaStatus.missing_models.map(m => {
+                      const ps = pullState[m.id]
+                      return (
+                        <div key={m.id} className="setup-model-item missing">
+                          <div>
+                            <strong>{m.name}</strong>
+                            <span className="setup-model-desc">{m.description}</span>
+                          </div>
+                          {ps?.active ? (
+                            <div className="setup-pull-progress">
+                              <div className="progress-bar-mini">
+                                <div className="progress-fill" style={{ width: `${ps.pct}%` }} />
+                              </div>
+                              <span className="setup-pull-status">{ps.status} {ps.pct > 0 ? `${ps.pct}%` : ''}</span>
+                              <button className="btn btn-small btn-secondary" onClick={() => handleCancelPull(m.id)}>취소</button>
+                            </div>
+                          ) : ps?.pct === 100 ? (
+                            <span className="badge badge-success">설치됨</span>
+                          ) : (
+                            <button className="btn btn-small btn-primary" onClick={() => handlePull(m.id)}>다운로드</button>
+                          )}
+                          {ps?.error && <div className="setup-pull-error">{ps.error}</div>}
                         </div>
-                        <code className="setup-model-cmd">ollama pull {m.id}</code>
-                      </div>
-                    ))}
+                      )
+                    })}
                     <p className="setup-help-text">
-                      터미널(명령 프롬프트)에서 위 명령어를 실행하여 모델을 설치할 수 있습니다.
+                      위 버튼을 클릭하여 모델을 설치할 수 있습니다.
                       모델이 없어도 앱은 실행되지만, AI 기능이 제한됩니다.
                     </p>
                   </div>
@@ -281,7 +351,12 @@ export default function SetupWizard() {
           )}
           <div style={{ flex: 1 }} />
           {canNext && (
-            <button className="btn btn-primary" onClick={() => setStep(s => s + 1)}>
+            <button
+              className="btn btn-primary"
+              onClick={() => setStep(s => s + 1)}
+              disabled={ollamaBlocked}
+              title={ollamaBlocked ? 'Ollama 연결이 필요합니다' : undefined}
+            >
               다음
             </button>
           )}

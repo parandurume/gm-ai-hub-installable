@@ -33,14 +33,14 @@ gm-ai-hub-app/
 │   ├── paths.py            # Centralized path resolution (frozen/dev)
 │   ├── api/
 │   │   ├── router.py       # Route registration (try/except pattern)
-│   │   ├── health.py, chat.py, gianmun.py, meeting.py, complaint.py
+│   │   ├── health.py, chat.py, draft.py, meeting.py, complaint.py
 │   │   ├── regulation.py, search.py, pii.py, diff.py
 │   │   ├── settings_api.py, models.py, filesystem.py, samples.py
 │   │   └── setup_wizard.py
 │   ├── ai/
 │   │   ├── client.py        # GptOssClient (Ollama via OpenAI SDK)
 │   │   ├── guards.py        # Content safety guards
-│   │   ├── pipelines/       # DSPy pipelines (gianmun, meeting, complaint, docent)
+│   │   ├── pipelines/       # DSPy pipelines (draft, meeting, complaint, docent)
 │   │   ├── signatures/      # DSPy signatures
 │   │   └── optimization/    # Scheduler, metrics
 │   ├── db/
@@ -51,7 +51,7 @@ gm-ai-hub-app/
 ├── frontend/
 │   └── src/
 │       ├── App.jsx          # Router with lazy-loaded pages + SetupGuard
-│       ├── pages/           # Dashboard, Gianmun, Meeting, Chat, Complaint, etc.
+│       ├── pages/           # Dashboard, Draft, Meeting, Chat, Complaint, etc.
 │       ├── components/      # Sidebar, Topbar, Modal, Toast, etc.
 │       ├── hooks/           # Custom hooks (useToast, etc.)
 │       ├── styles/          # CSS files
@@ -97,7 +97,7 @@ python build/build.py
 | Feature | Route | Page |
 |---------|-------|------|
 | Dashboard | `/` | Dashboard.jsx |
-| Official Document Drafting (기안문) | `/gianmun` | GianmunPage.jsx |
+| Official Document Drafting (기안문) | `/draft` | DraftPage.jsx |
 | Meeting Minutes (회의록) | `/meeting` | MeetingPage.jsx |
 | AI Chat | `/chat` | ChatPage.jsx |
 | Complaint Response (민원 답변) | `/complaint` | ComplaintPage.jsx |

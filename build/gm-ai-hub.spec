@@ -34,6 +34,11 @@ try:
 except Exception:
     pass
 
+try:
+    _extra_datas += collect_data_files("faster_whisper")  # silero_vad_v6.onnx
+except Exception:
+    pass
+
 PROJECT_ROOT = Path(SPECPATH).parent
 BACKEND_DIR = PROJECT_ROOT / "backend"
 FRONTEND_DIST = PROJECT_ROOT / "frontend" / "dist"
@@ -94,7 +99,7 @@ hidden_imports = [
     "lxml.etree",
     "openpyxl",
     "docx",
-    "fitz",  # PyMuPDF
+    "pdfplumber",
     # 기타
     "httpx",
     "structlog",
@@ -111,7 +116,7 @@ hidden_imports = [
     "backend.api.health",
     "backend.api.setup_wizard",
     "backend.api.documents",
-    "backend.api.gianmun",
+    "backend.api.draft",
     "backend.api.search",
     "backend.api.chat",
     "backend.api.meeting",

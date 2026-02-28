@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { fetchJSON, postJSON, API } from '../utils/api'
+import { fetchJSON, postJSON, API, aiErrorMessage } from '../utils/api'
 import { useToast } from '../hooks/useToast'
 
 export default function DiffPage() {
@@ -22,8 +22,8 @@ export default function DiffPage() {
       const data = await postJSON(API.diff, { path_a: pathA, path_b: pathB })
       setResult(data)
       toast('비교 완료', 'success')
-    } catch {
-      toast('비교 실패', 'error')
+    } catch (err) {
+      toast(aiErrorMessage('문서 비교', err), 'error')
     } finally {
       setLoading(false)
     }
@@ -31,10 +31,15 @@ export default function DiffPage() {
 
   function renderDiffLine(line, i) {
     let cls = ''
-    if (line.startsWith('+')) cls = 'diff-add'
-    else if (line.startsWith('-')) cls = 'diff-del'
+    if (line.startsWith('+') && !line.startsWith('+++')) cls = 'diff-add'
+    else if (line.startsWith('-') && !line.startsWith('---')) cls = 'diff-del'
     else if (line.startsWith('@@')) cls = 'diff-hunk'
-    return <div key={i} className={`diff-line ${cls}`}>{line}</div>
+    return (
+      <div key={i} className={`diff-line ${cls}`}>
+        <span className="diff-line-num">{i + 1}</span>
+        <span className="diff-line-text">{line}</span>
+      </div>
+    )
   }
 
   return (
@@ -69,6 +74,12 @@ export default function DiffPage() {
 
       {result ? (
         <div>
+          <div className="diff-summary">
+            <span className="badge badge-success">+{result.added} 추가</span>
+            <span className="badge badge-error">-{result.removed} 삭제</span>
+            <span className="badge badge-gray">유사도 {(result.similarity * 100).toFixed(0)}%</span>
+          </div>
+
           {result.number_changes?.length > 0 && (
             <div className="card" style={{ marginBottom: 16 }}>
               <div className="card-header">수치 변경</div>
@@ -99,7 +110,7 @@ export default function DiffPage() {
           <div className="card">
             <div className="card-header">텍스트 비교</div>
             <div className="card-body diff-view">
-              {(result.diff || result.unified_diff || '').split('\n').map(renderDiffLine)}
+              {(Array.isArray(result.diff_lines) ? result.diff_lines : (result.diff || result.unified_diff || '').split('\n')).map(renderDiffLine)}
             </div>
           </div>
         </div>

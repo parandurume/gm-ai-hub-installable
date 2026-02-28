@@ -17,7 +17,7 @@ export default function ThinkingPanel({ content, streaming = false }) {
         <span>{open ? 'AI 추론 과정 접기' : 'AI 추론 과정 펼치기'}</span>
         {streaming && <span className="thinking-pulse" />}
       </button>
-      {open && <div className="thinking-content">{content}</div>}
+      <div className={`thinking-content${open ? ' thinking-content-open' : ''}`}>{content}</div>
     </div>
   )
 }

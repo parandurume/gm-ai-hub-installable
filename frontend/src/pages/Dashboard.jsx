@@ -4,7 +4,7 @@ import { fetchJSON, API } from '../utils/api'
 import { timeAgo } from '../utils/date'
 
 const PRIMARY_ACTIONS = [
-  { to: '/gianmun',   icon: '✍️',  title: '기안문 작성',  desc: '공문서 AI 초안 생성 + HWPX 저장' },
+  { to: '/draft',     icon: '✍️',  title: '기안문 작성',  desc: '공문서 AI 초안 생성 + HWPX 저장' },
   { to: '/chat',      icon: '🤖', title: 'AI 채팅',      desc: '공문서 작성 전반 어시스턴트' },
   { to: '/complaint', icon: '📨', title: '민원 답변',     desc: '민원 분류 + 답변 초안 자동 생성' },
 ]
@@ -23,12 +23,14 @@ export default function Dashboard() {
   const [aiStatus, setAiStatus] = useState(null)
   const [models, setModels] = useState([])
   const [optStatus, setOptStatus] = useState(null)
+  const [recentDocs, setRecentDocs] = useState([])
 
   useEffect(() => {
     fetchJSON(API.health).then(setStats).catch(() => {})
     fetchJSON(API.healthOllama).then(setAiStatus).catch(() => setAiStatus({ status: 'offline' }))
     fetchJSON(API.models).then(d => { if (d?.models) setModels(d.models.filter(m => m.available)) }).catch(() => {})
     fetchJSON(API.optimizeStatus).then(setOptStatus).catch(() => {})
+    fetchJSON(API.documents).then(d => setRecentDocs((d?.files || []).slice(0, 8))).catch(() => {})
   }, [])
 
   const serverOk = !!stats
@@ -68,6 +70,22 @@ export default function Dashboard() {
           </>
         )}
       </div>
+
+      {/* Recent documents */}
+      {recentDocs.length > 0 && (
+        <div className="recent-docs">
+          <div className="recent-docs-header">최근 문서</div>
+          <div className="recent-docs-list">
+            {recentDocs.map(f => (
+              <Link key={f.path} to="/files" className="recent-doc-item">
+                <span className="recent-doc-name">{f.filename}</span>
+                <span className="badge badge-gray">{f.ext}</span>
+                <span className="recent-doc-time">{timeAgo(f.modified_at * 1000)}</span>
+              </Link>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Primary action cards */}
       <div className="dashboard-primary-grid">

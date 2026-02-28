@@ -7,7 +7,7 @@ import FolderPicker from '../components/FolderPicker'
 import { useToast } from '../hooks/useToast'
 
 const PIPELINES = [
-  { id: 'gianmun',   label: '기안문 최적화' },
+  { id: 'draft',     label: '기안문 최적화' },
   { id: 'docent',    label: '도슨트 최적화' },
   { id: 'complaint', label: '민원 최적화' },
   { id: 'meeting',   label: '회의록 최적화' },
@@ -222,6 +222,30 @@ export default function SettingsPage() {
               />
               내보내기 시 PII 자동 검사
             </label>
+          </div>
+          <div className="form-group">
+            <label>STT 음성 인식 모델</label>
+            <select className="select"
+              value={settings.stt_model || 'medium'}
+              onChange={e => updateSetting('stt_model', e.target.value)}>
+              <option value="tiny">tiny (~40 MB, 빠름)</option>
+              <option value="base">base (~140 MB)</option>
+              <option value="small">small (~480 MB)</option>
+              <option value="medium">medium (~1.5 GB, 권장)</option>
+              <option value="large-v3">large-v3 (~3 GB, 최고 정확도)</option>
+            </select>
+          </div>
+          <div className="form-group">
+            <label>STT 언어</label>
+            <select className="select"
+              value={settings.stt_language || 'ko'}
+              onChange={e => updateSetting('stt_language', e.target.value)}>
+              <option value="ko">한국어</option>
+              <option value="en">English</option>
+              <option value="ja">日本語</option>
+              <option value="zh">中文</option>
+              <option value="auto">자동 감지</option>
+            </select>
           </div>
           <button className="btn btn-primary" onClick={handleSaveSettings} disabled={loading}>
             {loading ? '저장 중...' : '설정 저장'}

@@ -210,6 +210,28 @@ def step_pyinstaller():
         shutil.rmtree(build_tmp)
 
 
+def _sync_installer_version() -> None:
+    """pyproject.toml에서 버전을 읽어 gm-ai-hub.iss에 동기화."""
+    import re
+    import tomllib
+
+    with open(PROJECT_ROOT / "pyproject.toml", "rb") as f:
+        data = tomllib.load(f)
+    version = data["project"]["version"]
+
+    iss_text = ISS_FILE.read_text(encoding="utf-8")
+    new_text = re.sub(
+        r'#define MyAppVersion ".*?"',
+        f'#define MyAppVersion "{version}"',
+        iss_text,
+    )
+    if new_text != iss_text:
+        ISS_FILE.write_text(new_text, encoding="utf-8")
+        print(f"  버전 동기화: {version}")
+    else:
+        print(f"  버전 이미 동기화됨: {version}")
+
+
 def step_installer():
     """4. Inno Setup 인스톨러 생성.
 
@@ -220,6 +242,8 @@ def step_installer():
     if not ISS_FILE.exists():
         print(f"  iss 파일 없음: {ISS_FILE}")
         sys.exit(1)
+
+    _sync_installer_version()
 
     iscc = _find_iscc()
     if not iscc:

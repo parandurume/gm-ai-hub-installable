@@ -75,7 +75,7 @@ class AiDocentPlanPipeline(dspy.Module):
         bg = self.background(
             project_title=user_request,
             current_year=YEAR,
-            gwangmyeong_context=ctx.get("gwangmyeong", ""),
+            city_context=ctx.get("city", ctx.get("gwangmyeong", "")),
             ai_trend_context=ctx.get("ai_trend", ""),
         )
 

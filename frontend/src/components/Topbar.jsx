@@ -2,11 +2,13 @@ import { useState, useEffect } from 'react'
 import { useLocation } from 'react-router-dom'
 import { fetchJSON, API } from '../utils/api'
 import ConfirmModal from './ConfirmModal'
+import { useAiBusy } from '../hooks/useAiBusy'
+import { useTheme } from '../hooks/useTheme'
 
 const PAGE_TITLES = {
   '/':           '대시보드',
   '/files':      '문서 관리',
-  '/gianmun':    '기안문 작성',
+  '/draft':      '기안문 작성',
   '/search':     '문서 검색',
   '/chat':       'AI 채팅',
   '/meeting':    '회의록',
@@ -46,6 +48,8 @@ function QuitDoneScreen() {
 export default function Topbar({ onToggleSidebar }) {
   const { pathname } = useLocation()
   const title = PAGE_TITLES[pathname] || ''
+  const { busy, taskLabel } = useAiBusy()
+  const { theme, toggle: toggleTheme } = useTheme()
   const [ollamaOk, setOllamaOk] = useState(null)
   const [quitConfirm, setQuitConfirm] = useState(false)
   const [quitting, setQuitting] = useState(false)
@@ -57,7 +61,7 @@ export default function Topbar({ onToggleSidebar }) {
         .catch(() => setOllamaOk(false))
     }
     check()
-    const interval = setInterval(check, 30000)
+    const interval = setInterval(check, 10000)
     return () => clearInterval(interval)
   }, [])
 
@@ -99,10 +103,22 @@ export default function Topbar({ onToggleSidebar }) {
           <span className="topbar-title">{title}</span>
         </div>
         <div className="topbar-actions">
+          {busy && (
+            <span className="ai-busy-indicator">
+              <span className="ai-busy-spinner" />
+              {taskLabel}
+            </span>
+          )}
           <span className={`ollama-status ${ollamaOk === true ? 'online' : ollamaOk === false ? 'offline' : ''}`}>
             <span className="ollama-dot" />
             {ollamaOk === null ? 'Ollama 확인 중' : ollamaOk ? 'Ollama 연결됨' : 'Ollama 오프라인'}
           </span>
+          <button
+            className="btn-quit"
+            onClick={toggleTheme}
+            title={theme === 'light' ? '다크 모드' : '라이트 모드'}
+            aria-label="테마 전환"
+          >{theme === 'light' ? '\u{1F319}' : '\u2600\uFE0F'}</button>
           <button
             className="btn-quit"
             onClick={() => setQuitConfirm(true)}

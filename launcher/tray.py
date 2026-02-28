@@ -74,6 +74,11 @@ def _load_icon() -> Image.Image:
     return _create_default_icon()
 
 
+_MAX_RESTARTS = 5          # 연속 재시작 최대 횟수
+_HEALTH_INTERVAL = 5       # 헬스 체크 주기 (초)
+_HEALTH_FAIL_THRESHOLD = 3 # 연속 실패 N회 시 재시작
+
+
 class TrayApp:
     """시스템 트레이 애플리케이션."""
 
@@ -110,8 +115,8 @@ class TrayApp:
 
             self._server_proc = subprocess.Popen(
                 cmd,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
                 creationflags=creation_flags,
             )
             self._running = True
@@ -148,35 +153,107 @@ class TrayApp:
         webbrowser.open(_URL)
 
     def _monitor_server(self):
-        """서버 프로세스 종료 감지 → 트레이 자동 종료.
+        """서버 감시: 프로세스 종료 또는 응답 없음 시 자동 재시작.
 
-        /api/quit 엔드포인트가 서버를 종료하면 트레이 아이콘도 자동으로 닫힌다.
+        - 절전 복귀 후 서버가 죽거나 응답 불능 → 자동 재시작 (최대 N회)
+        - 사용자가 /api/quit으로 정상 종료 (exit code 0) → 트레이도 종료
         """
+        restart_count = 0
+        health_fail = 0
+
         while self._running:
+            time.sleep(_HEALTH_INTERVAL)
+            if not self._running:
+                return
+
+            # ── 1. 프로세스 종료 감지 ──
             if self._server_proc and self._server_proc.poll() is not None:
+                exit_code = self._server_proc.returncode
+                self._server_proc = None
+
+                # 정상 종료 (사용자 /api/quit) → 트레이도 종료
+                if exit_code == 0:
+                    self._running = False
+                    if self._icon:
+                        self._icon.stop()
+                    return
+
+                # 비정상 종료 → 재시작
+                if restart_count >= _MAX_RESTARTS:
+                    self._running = False
+                    if self._icon:
+                        self._icon.stop()
+                    return
+
+                restart_count += 1
+                time.sleep(2)
+                if self.start_server() and self.wait_for_server():
+                    health_fail = 0
+                    continue
+                # 재시작 실패 → 종료
                 self._running = False
                 if self._icon:
                     self._icon.stop()
                 return
-            time.sleep(1)
+
+            # ── 2. 헬스 체크 (프로세스 alive but 응답 없음 — 절전 복귀) ──
+            try:
+                r = httpx.get(_HEALTH_URL, timeout=3)
+                if r.status_code == 200:
+                    health_fail = 0
+                    restart_count = 0  # 안정 → 카운터 리셋
+                    continue
+            except Exception:
+                pass
+
+            health_fail += 1
+            if health_fail >= _HEALTH_FAIL_THRESHOLD:
+                if restart_count >= _MAX_RESTARTS:
+                    self._running = False
+                    if self._icon:
+                        self._icon.stop()
+                    return
+
+                restart_count += 1
+                health_fail = 0
+                self.stop_server()
+                time.sleep(2)
+                if self.start_server() and self.wait_for_server():
+                    continue
+                self._running = False
+                if self._icon:
+                    self._icon.stop()
+                return
 
     def _monitor_server_port(self):
         """헬스 체크 기반 서버 감시 (프로세스를 소유하지 않는 경우).
 
         이전 세션에서 서버가 남아 있을 때 트레이가 이를 인계받은 뒤 사용.
-        서버가 응답하지 않으면 트레이를 자동 종료한다.
+        서버가 응답하지 않으면 자체 서버를 시작한다.
         """
+        health_fail = 0
         while self._running:
-            time.sleep(3)
+            time.sleep(_HEALTH_INTERVAL)
+            if not self._running:
+                return
             try:
-                r = httpx.get(_HEALTH_URL, timeout=2)
-                if r.status_code != 200:
-                    break
+                r = httpx.get(_HEALTH_URL, timeout=3)
+                if r.status_code == 200:
+                    health_fail = 0
+                    continue
             except Exception:
-                break
-        self._running = False
-        if self._icon:
-            self._icon.stop()
+                pass
+
+            health_fail += 1
+            if health_fail >= _HEALTH_FAIL_THRESHOLD:
+                # 인계 서버 응답 없음 → 자체 서버 시작 후 프로세스 모니터로 전환
+                if self.start_server() and self.wait_for_server():
+                    self._monitor_server()
+                else:
+                    self._running = False
+                    if self._icon:
+                        self._icon.stop()
+                return
 
     def restart_server(self):
         """서버 재시작."""

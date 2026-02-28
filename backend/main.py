@@ -12,12 +12,35 @@ GM-AI-Hub FastAPI 애플리케이션 진입점.
 
 from __future__ import annotations
 
+import os
+import sys
+
+# Windows: pipes/no-console 환경에서 cp1252 → UTF-8 강제 (structlog 한글 출력 보호)
+if sys.stdout is None:
+    sys.stdout = open(os.devnull, "w", encoding="utf-8")  # noqa: SIM115
+elif hasattr(sys.stdout, "reconfigure"):
+    try:
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+    except Exception:
+        pass
+if sys.stderr is None:
+    sys.stderr = open(os.devnull, "w", encoding="utf-8")  # noqa: SIM115
+elif hasattr(sys.stderr, "reconfigure"):
+    try:
+        sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+    except Exception:
+        pass
+
 from contextlib import asynccontextmanager
+from urllib.parse import urlparse
 
 import structlog
 from fastapi import FastAPI
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
+from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.requests import Request
+from starlette.responses import JSONResponse
 
 from backend import paths
 from backend.api.router import register_routes
@@ -54,6 +77,36 @@ app = FastAPI(
     lifespan=lifespan,
     docs_url="/api/docs" if settings.APP_DEBUG else None,
 )
+
+# ── Origin 검증 미들웨어 (CSRF 방어) ─────────────────────────
+_SAFE_METHODS = {"GET", "HEAD", "OPTIONS"}
+ALLOWED_ORIGINS = {
+    f"http://127.0.0.1:{settings.APP_PORT}",
+    f"http://localhost:{settings.APP_PORT}",
+    "http://127.0.0.1:5173",
+    "http://localhost:5173",
+}
+
+
+class OriginCheckMiddleware(BaseHTTPMiddleware):
+    """POST/PUT/DELETE 요청의 Origin 헤더를 검증한다.
+
+    Origin이 없는 요청(curl, Postman 등)은 허용 — 브라우저 CSRF만 방어.
+    """
+
+    async def dispatch(self, request: Request, call_next):
+        if request.method not in _SAFE_METHODS:
+            origin = request.headers.get("origin") or request.headers.get("referer", "")
+            if origin and "://" in origin:
+                parsed = urlparse(origin)
+                origin = f"{parsed.scheme}://{parsed.netloc}"
+            if origin and origin not in ALLOWED_ORIGINS:
+                log.warning("Origin 차단", origin=origin, path=request.url.path)
+                return JSONResponse({"detail": "Origin not allowed"}, status_code=403)
+        return await call_next(request)
+
+
+app.add_middleware(OriginCheckMiddleware)
 
 register_routes(app)
 

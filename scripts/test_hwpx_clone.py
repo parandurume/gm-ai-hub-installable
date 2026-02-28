@@ -18,7 +18,7 @@ OUTPUT_DIR = ROOT / "data" / "workspace"
 if len(sys.argv) > 1:
     REFERENCE = Path(sys.argv[1])
 else:
-    REFERENCE = ROOT / "data" / "samples" / "gianmun" / "reference.hwpx"
+    REFERENCE = ROOT / "data" / "samples" / "draft" / "reference.hwpx"
 
 ALL_NS = (
     'xmlns:ha="http://www.hancom.co.kr/hwpml/2011/app" '

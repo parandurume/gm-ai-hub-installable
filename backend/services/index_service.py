@@ -126,10 +126,12 @@ class IndexService:
             return path.read_text(encoding="utf-8", errors="replace")
         elif ext == ".pdf":
             try:
-                import fitz
+                import pdfplumber
 
-                doc = fitz.open(str(path))
-                return "\n".join(page.get_text() for page in doc)
+                with pdfplumber.open(str(path)) as pdf:
+                    return "\n".join(
+                        page.extract_text() or "" for page in pdf.pages
+                    )
             except ImportError:
                 return ""
         elif ext == ".docx":

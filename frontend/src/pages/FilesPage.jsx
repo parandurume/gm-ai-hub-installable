@@ -2,12 +2,14 @@ import { useState, useEffect, useCallback } from 'react'
 import { fetchJSON, API } from '../utils/api'
 import FileTable from '../components/FileTable'
 import HwpxPreview from '../components/HwpxPreview'
+import ConfirmModal from '../components/ConfirmModal'
 import { useToast } from '../hooks/useToast'
 
 export default function FilesPage() {
   const [files, setFiles] = useState([])
   const [selected, setSelected] = useState(null)
   const [loading, setLoading] = useState(false)
+  const [deleteConfirm, setDeleteConfirm] = useState(null)
   const toast = useToast()
 
   /* rerender-memo-with-default-value: Stable callback ref avoids
@@ -30,8 +32,7 @@ export default function FilesPage() {
     }
   }
 
-  async function handleDelete(path) {
-    if (!confirm('정말 삭제하시겠습니까?')) return
+  async function doDelete(path) {
     try {
       await fetch(`${API.documents}/${encodeURIComponent(path)}`, { method: 'DELETE' })
       toast('삭제 완료', 'success')
@@ -39,6 +40,8 @@ export default function FilesPage() {
       loadFiles()
     } catch {
       toast('삭제 실패', 'error')
+    } finally {
+      setDeleteConfirm(null)
     }
   }
 
@@ -53,6 +56,15 @@ export default function FilesPage() {
 
   return (
     <div className="page-files">
+      <ConfirmModal
+        open={!!deleteConfirm}
+        title="파일 삭제"
+        message="정말 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다."
+        confirmLabel="삭제"
+        danger
+        onConfirm={() => doDelete(deleteConfirm)}
+        onCancel={() => setDeleteConfirm(null)}
+      />
       <div className="page-header">
         <h2>문서 관리</h2>
         <div className="page-actions">
@@ -76,7 +88,7 @@ export default function FilesPage() {
           />
           {selected && (
             <div style={{ padding: '12px', borderTop: '1px solid var(--line)' }}>
-              <button className="btn btn-danger" onClick={() => handleDelete(selected)}>삭제</button>
+              <button className="btn btn-danger" onClick={() => setDeleteConfirm(selected)}>삭제</button>
             </div>
           )}
         </div>

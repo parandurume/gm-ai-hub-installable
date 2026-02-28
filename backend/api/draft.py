@@ -1,4 +1,4 @@
-"""기안문 API — /api/gianmun."""
+"""공문서 초안(Draft) API — /api/draft."""
 
 from __future__ import annotations
 
@@ -12,12 +12,13 @@ from backend.ai.client import GptOssClient
 from backend.ai.guards import BudgetValidator, DateGuard
 from backend.ai.model_registry import ModelRegistry
 from backend.config import settings
+from backend.db.database import get_setting
 from backend.models.document import (
     AiBodyRequest,
     Annotation,
-    GianmunRequest,
-    GianmunSaveRequest,
-    GianmunValidateRequest,
+    DraftRequest,
+    DraftSaveRequest,
+    DraftValidateRequest,
 )
 from backend.services.hwpx_service import hwpx_service
 from backend.services.pii_service import pii_service
@@ -27,11 +28,32 @@ from backend.services.web_fetch_service import (
     fetch_all_urls,
 )
 
-router = APIRouter(prefix="/api/gianmun", tags=["gianmun"])
+router = APIRouter(prefix="/api/draft", tags=["draft"])
 log = structlog.get_logger()
 
 _client = GptOssClient(settings.OLLAMA_BASE_URL, settings.OLLAMA_MODEL)
 _registry = ModelRegistry(settings.OLLAMA_BASE_URL)
+
+
+async def _load_user_context() -> tuple[str, str]:
+    """DB에서 부서명·담당자명·기관명을 읽어 (system_extra, org_name) 반환."""
+    org_name = await get_setting("org_name", "소속기관")
+    dept = (await get_setting("department_name", "")).strip()
+    officer = (await get_setting("officer_name", "")).strip()
+    if not dept and not officer:
+        return "", org_name
+    parts = []
+    if dept:
+        parts.append(f"- 부서: {dept}")
+    if officer:
+        parts.append(f"- 담당자: {officer}")
+    extra = (
+        "\n\n[사용자 정보]\n"
+        + "\n".join(parts)
+        + "\n문서 작성 시 위 부서명·담당자명을 그대로 사용하세요. 임의로 변경하거나 대체 이름을 만들지 마세요.\n"
+    )
+    return extra, org_name
+
 
 # 7종 템플릿
 TEMPLATES = [
@@ -52,21 +74,23 @@ async def list_templates():
 
 
 @router.post("/generate")
-async def generate_gianmun(req: GianmunRequest):
-    """기안문 생성 (AI 선택)."""
+async def generate_draft(req: DraftRequest):
+    """공문서 초안 생성 (AI 선택)."""
     body = req.body_text
     if req.ai_instruction and not body:
         # Registry-based model resolution
         await _registry.refresh()
-        resolved, _ = _registry.select(task="gianmun_body", env=settings.environment)
+        resolved, _ = _registry.select(task="draft_body", env=settings.environment)
+        user_ctx, org_name = await _load_user_context()
         messages = [
             {"role": "user", "content": req.ai_instruction},
         ]
         result = await _client.chat(
             messages=messages,
-            task="gianmun_body",
-            system_extra=f"\n문서 종류: {req.doc_type}\n제목: {req.subject}",
+            task="draft_body",
+            system_extra=f"\n문서 종류: {req.doc_type}\n제목: {req.subject}" + user_ctx,
             model=resolved,
+            org_name=org_name,
         )
         body = result["content"]
 
@@ -85,7 +109,7 @@ async def generate_gianmun(req: GianmunRequest):
         ),
     )
 
-    log.info("기안문 생성", action="create_gianmun", doc_type=req.doc_type)
+    log.info("공문서 초안 생성", action="create_draft", doc_type=req.doc_type)
     return {"path": str(result), "success": True, "doc_type": req.doc_type}
 
 
@@ -94,7 +118,7 @@ async def generate_ai_body(req: AiBodyRequest):
     """AI 본문만 생성 (SSE 스트리밍, JSON 이벤트). URL이 포함되면 웹 콘텐츠를 가져와 참조."""
     await _registry.refresh()
     resolved, _ = _registry.select(
-        task="gianmun_body", env=settings.environment, user_override=req.model,
+        task="draft_body", env=settings.environment, user_override=req.model,
     )
 
     # URL 감지 → 웹 콘텐츠 가져오기
@@ -106,6 +130,8 @@ async def generate_ai_body(req: AiBodyRequest):
     instruction = build_augmented_instruction(req.instruction, fetched_pages)
     messages = [{"role": "user", "content": instruction}]
 
+    user_ctx, org_name = await _load_user_context()
+
     async def stream():
         # URL을 가져왔으면 fetching 이벤트 전송
         for page in fetched_pages:
@@ -114,7 +140,7 @@ async def generate_ai_body(req: AiBodyRequest):
                 status = f"{page['url']} (실패: {page['error']})"
             yield f"data: {json.dumps({'type': 'fetching', 'url': page['url'], 'status': status}, ensure_ascii=False)}\n\n"
 
-        async for event in _client.stream(messages=messages, task="gianmun_body", model=resolved):
+        async for event in _client.stream(messages=messages, task="draft_body", model=resolved, org_name=org_name, system_extra=user_ctx):
             yield f"data: {json.dumps(event, ensure_ascii=False)}\n\n"
         yield f"data: {json.dumps({'type': 'done'})}\n\n"
 
@@ -160,7 +186,7 @@ def _detect_budget_table(text: str) -> dict | None:
 
 
 @router.post("/validate")
-async def validate_gianmun(req: GianmunValidateRequest):
+async def validate_draft(req: DraftValidateRequest):
     """텍스트 검증: DateGuard, PII, 예산."""
     import re as _re
 
@@ -217,7 +243,7 @@ async def validate_gianmun(req: GianmunValidateRequest):
 
 
 @router.post("/save")
-async def save_gianmun(req: GianmunSaveRequest):
+async def save_draft(req: DraftSaveRequest):
     """HWPX 저장."""
     fields = {"제목": req.subject, "수신": req.recipients, "본문": req.body}
     result = hwpx_service.create_from_template(

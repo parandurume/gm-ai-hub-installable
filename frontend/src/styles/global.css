@@ -18,6 +18,7 @@
   --line:         var(--border);
   --bg:           var(--paper);
   --bg-secondary: var(--paper2);
+  --bg2:          var(--paper2);
   --white:   #FFFFFF;
 
   --font-sans:  'Noto Sans KR', sans-serif;
@@ -31,6 +32,27 @@
   --shadow: 0 2px 12px rgba(15,32,64,0.10);
   --shadow-sm: 0 1px 4px rgba(15,32,64,0.08);
 }
+
+/* ── 다크 모드 ─────────────────────────────────────────── */
+[data-theme="dark"] {
+  --navy:    #0A1628;
+  --navy2:   #142240;
+  --teal:    #00A87A;
+  --teal2:   #00D49B;
+  --amber:   #F5A623;
+  --red:     #E74C3C;
+  --paper:   #1A1A2E;
+  --paper2:  #222240;
+  --ink:     #E8E8F0;
+  --ink2:    #B0B0C0;
+  --ink3:    #808098;
+  --border:  #3A3A55;
+  --white:   #242438;
+  --shadow:  0 2px 12px rgba(0,0,0,0.3);
+  --shadow-sm: 0 1px 4px rgba(0,0,0,0.2);
+}
+[data-theme="dark"] pre { background: #0D1117; color: #C9D1D9; }
+[data-theme="dark"] ::selection { background: var(--teal); color: #fff; }
 
 *, *::before, *::after {
   box-sizing: border-box;

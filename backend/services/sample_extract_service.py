@@ -17,12 +17,12 @@ from backend import paths
 
 SAMPLES_ROOT = paths.user_samples_dir()
 EXAMPLES_ROOT = paths.user_examples_dir()
-VALID_PIPELINES = {"gianmun", "docent", "complaint", "meeting"}
+VALID_PIPELINES = {"draft", "docent", "complaint", "meeting"}
 
 # ── Pipeline-specific AI prompts ──────────────────────────────────
 
 _ANALYSIS_PROMPTS: dict[str, str] = {
-    "gianmun": (
+    "draft": (
         "당신은 대한민국 지방자치단체 공문서 분석 전문가입니다.\n"
         "아래 공문서 본문을 분석하여 **반드시 JSON만** 응답하세요. "
         "설명·인사말·마크다운 코드펜스(```)는 금지입니다.\n\n"
@@ -313,7 +313,7 @@ def _build_candidate(
     """파이프라인별 후보 예시 구성."""
     year = date.today().year
 
-    if pipeline == "gianmun":
+    if pipeline == "draft":
         return {
             "filename": filename,
             "doc_type": ai_metadata.get("doc_type", "일반기안"),
@@ -361,7 +361,7 @@ def _clean_for_storage(pipeline: str, example: dict) -> dict:
     clean = {k: v for k, v in example.items() if k not in ("filename", "error", "status")}
 
     # Map fields to what auto_dataset expects
-    if pipeline == "gianmun":
+    if pipeline == "draft":
         # auto_dataset expects: user_request, doc_type, current_year, body
         return {
             "user_request": clean.get("instruction", clean.get("subject", "")),

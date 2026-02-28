@@ -23,7 +23,7 @@ gm-ai-hub-app/
 │   │   ├── router.py           # Route registration
 │   │   ├── health.py           # /api/health
 │   │   ├── setup_wizard.py     # /api/setup/* (first-run wizard)
-│   │   ├── gianmun.py          # Document creation
+│   │   ├── draft.py             # Document creation
 │   │   ├── chat.py             # AI chat (WebSocket)
 │   │   └── ...                 # 12 more routers
 │   ├── db/
@@ -42,7 +42,7 @@ gm-ai-hub-app/
 │   │   ├── pages/
 │   │   │   ├── SetupWizard.jsx # 5-step onboarding wizard
 │   │   │   ├── Dashboard.jsx
-│   │   │   ├── GianmunPage.jsx # Document creation
+│   │   │   ├── DraftPage.jsx   # Document creation
 │   │   │   ├── ChatPage.jsx    # AI chat with streaming
 │   │   │   └── ...             # 8 more pages
 │   │   ├── components/
@@ -177,7 +177,7 @@ In dev mode, it runs `python -m backend.main`.
 
 ```bash
 # Clone and enter the project
-cd "D:\OneDrive - Parandurume\dev\gm-ai-hub-app"
+cd /path/to/gm-ai-hub-app
 
 # Create virtual environment
 python -m venv .venv

@@ -3,6 +3,7 @@ import { BrowserRouter, Routes, Route, Navigate, useLocation, useNavigate } from
 import Sidebar from './components/Sidebar'
 import Topbar from './components/Topbar'
 import { ToastProvider } from './hooks/useToast'
+import { AiBusyProvider } from './hooks/useAiBusy'
 import LoadingSpinner from './components/LoadingSpinner'
 import { fetchJSON, API } from './utils/api'
 
@@ -10,7 +11,7 @@ import { fetchJSON, API } from './utils/api'
    Each page loads only when navigated to, reducing initial bundle. */
 const Dashboard = lazy(() => import('./pages/Dashboard'))
 const FilesPage = lazy(() => import('./pages/FilesPage'))
-const GianmunPage = lazy(() => import('./pages/GianmunPage'))
+const DraftPage = lazy(() => import('./pages/DraftPage'))
 const SearchPage = lazy(() => import('./pages/SearchPage'))
 const MeetingPage = lazy(() => import('./pages/MeetingPage'))
 const ComplaintPage = lazy(() => import('./pages/ComplaintPage'))
@@ -55,6 +56,7 @@ export default function App() {
   return (
     <BrowserRouter>
       <ToastProvider>
+        <AiBusyProvider>
         <SetupGuard>
           <Suspense fallback={<LoadingSpinner />}>
             <Routes>
@@ -70,7 +72,7 @@ export default function App() {
                         <Routes>
                           <Route path="/" element={<Dashboard />} />
                           <Route path="/files" element={<FilesPage />} />
-                          <Route path="/gianmun" element={<GianmunPage />} />
+                          <Route path="/draft" element={<DraftPage />} />
                           <Route path="/search" element={<SearchPage />} />
                           <Route path="/meeting" element={<MeetingPage />} />
                           <Route path="/complaint" element={<ComplaintPage />} />
@@ -88,6 +90,7 @@ export default function App() {
             </Routes>
           </Suspense>
         </SetupGuard>
+        </AiBusyProvider>
       </ToastProvider>
     </BrowserRouter>
   )

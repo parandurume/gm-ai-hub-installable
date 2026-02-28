@@ -93,7 +93,7 @@ Min-jun should feel *relief* when he opens GM-AI-Hub — like having a competent
 
 **Frustrations:**
 - Settings page doesn't show which model is currently active for which task
-- Prompt optimization button labels are internal pipeline names (gianmun/docent/complaint/meeting) — not readable by a non-developer
+- Prompt optimization button labels are internal pipeline names (draft/docent/complaint/meeting) — not readable by a non-developer
 - No audit log viewer in the UI (exists in backend but not exposed)
 - STT model download (~1.5 GB) can trigger silently on first use — needs progress UI
 
@@ -179,7 +179,7 @@ Min-jun should feel *relief* when he opens GM-AI-Hub — like having a competent
 3. Recording UI is upgraded: a **waveform visualizer** (simple canvas animation) gives live audio feedback; the red timer is kept.
 4. Attendees field becomes a **tag input** — user types a name and presses Enter or comma to add a chip. Chips are removable.
 5. After transcription, the textarea shows the text with a "편집 완료" button — a subtle reminder that the user can edit before generating.
-6. Clicking "AI 회의록 생성" starts **streaming output** (matching the gianmun pattern) — no more waiting blindly.
+6. Clicking "AI 회의록 생성" starts **streaming output** (matching the draft pattern) — no more waiting blindly.
 7. The result panel adds expandable sections: "결정사항" and "후속조치" — pre-filled if AI detected them, editable.
 8. HWPX save auto-names the file as `회의록_[title]_[YYYYMMDD].hwpx` and shows the final path.
 
@@ -272,7 +272,7 @@ Min-jun should feel *relief* when he opens GM-AI-Hub — like having a competent
 
 **Ideal flow (to-be):**
 1. Navigation item moved up to position 7 (within the "document tools" group).
-2. PII scan is also offered as a **quick action on the GianmunPage** after AI generation (guard chip is already there — clicking it should open a mini PII view for that document specifically).
+2. PII scan is also offered as a **quick action on the DraftPage** after AI generation (guard chip is already there — clicking it should open a mini PII view for that document specifically).
 3. Batch scan result is presented as a **table**: one row per file, color-coded PII type columns, with a drill-down to open that file in the full PII view.
 4. Findings list shows: type chip + matched value (partially masked, e.g., "홍**동") + context snippet (5 words before/after).
 5. "내보내기" button generates a compliance report HWPX listing all findings.
@@ -436,7 +436,7 @@ A single-line "AI에게 질문하기..." input that navigates to the Chat page w
 ### Priority 2 — High Impact UX Improvements
 
 **P2-A: Body Instruction Character Counter (기안문)**
-- Where: GianmunPage, `form.body_instruction` textarea
+- Where: DraftPage, `form.body_instruction` textarea
 - Fix: Add `<span class="char-counter">{form.body_instruction.length} / 500</span>` below the textarea, styled with `.form-group-footer { text-align: right; font-size: 0.75rem; color: var(--ink3); }`. Turn amber at 80%, red at 100%.
 - Effort: 1 hour
 - Impact: Reduces user uncertainty about input length
@@ -446,8 +446,8 @@ A single-line "AI에게 질문하기..." input that navigates to the Chat page w
 - Fix: Same pattern as P2-A. Display below the input bar.
 - Effort: 1 hour
 
-**P2-C: Gianmun Document Type Selector (Visual Cards)**
-- Where: GianmunPage, template dropdown
+**P2-C: Draft Document Type Selector (Visual Cards)**
+- Where: DraftPage, template dropdown
 - Problem: A `<select>` dropdown gives no context about what each template produces
 - Fix: Replace the `<select>` with a horizontally scrollable card row (similar to ModelSelector pattern). Each card: icon + type name + 1-line description. Collapses to a dropdown on mobile (reuse `<select>` with media query swap).
 - Effort: 1 day
@@ -468,7 +468,7 @@ A single-line "AI에게 질문하기..." input that navigates to the Chat page w
 **P2-F: Settings Working Directory — FolderPicker**
 - Where: SettingsPage, general tab
 - Problem: `working_dir` is a raw text input. FolderPicker component already exists.
-- Fix: Replace the text input with a save-path-row pattern using FolderPicker, identical to the pattern already in GianmunPage.
+- Fix: Replace the text input with a save-path-row pattern using FolderPicker, identical to the pattern already in DraftPage.
 - Effort: 1 hour
 - Impact: Usability; avoids typos in file paths
 
@@ -496,7 +496,7 @@ A single-line "AI에게 질문하기..." input that navigates to the Chat page w
 - Impact: Power users who use Chat for multi-session research tasks gain significant value
 
 **P3-B: Inline Preview Editing (기안문)**
-- Where: GianmunPage preview pane
+- Where: DraftPage preview pane
 - Fix: Add an "편집 모드" toggle on the preview panel header. When active, the preview becomes a `contenteditable` div. Changes update the `preview` state. Save button saves the edited content, not the original AI output.
 - Effort: 1 day
 - Impact: Eliminates the "copy AI output to 한글, edit there, paste back" workaround that many users will do
@@ -565,7 +565,7 @@ A single-line "AI에게 질문하기..." input that navigates to the Chat page w
 | 3 | The red timer is displayed in MM:SS format with a pulsing red dot to the left | P1 |
 | 4 | Transcribed text appends to existing content with a visual separator line between sessions | P2 |
 | 5 | The attendees field accepts comma or Enter to create removable chips | P3 |
-| 6 | AI generation streams token-by-token into the right panel (matches gianmun pattern) | P2 |
+| 6 | AI generation streams token-by-token into the right panel (matches draft pattern) | P2 |
 | 7 | The generated output auto-scrolls into view after streaming begins | P2 |
 | 8 | The saved file name follows the format `회의록_[제목]_[YYYYMMDD].hwpx` | P2 |
 
@@ -658,7 +658,7 @@ LOW IMPACT
 ### Quick Wins (< 4 hours each)
 1. **P1-C** — Define missing CSS variables (15 min)
 2. **P1-D** — Darken ink3 token (30 min)
-3. **P2-A** — Character counter on GianmunPage body_instruction (1 hour)
+3. **P2-A** — Character counter on DraftPage body_instruction (1 hour)
 4. **P2-B** — Character counter on ChatPage textarea (1 hour)
 5. **P2-F** — Settings working_dir FolderPicker (1 hour)
 6. **P2-D** — Navigation grouping with separators (2 hours)
@@ -668,7 +668,7 @@ LOW IMPACT
 2. **P1-A** — STT model download progress UI (2 days: API endpoint + UI)
 3. **P2-H** — PII findings human-readable context (4 hours)
 4. **P2-G** — Complaint unified action (3 hours)
-5. **P2-C** — Gianmun document type visual card selector (1 day)
+5. **P2-C** — Draft document type visual card selector (1 day)
 6. **P2-E (Phase 1)** — Dashboard system bar + 3 action cards (2 days)
 7. **P2-E (Phase 2)** — Dashboard recent activity list (1 day)
 
@@ -676,7 +676,7 @@ LOW IMPACT
 1. **P3-A** — Chat session persistence (3 days)
 2. **P3-E** — PII compliance report export (2 days)
 3. **P3-G** — In-wizard model download (2 days)
-4. **P3-B** — Inline preview editing for gianmun (1 day)
+4. **P3-B** — Inline preview editing for draft (1 day)
 5. **P3-H** — Dark mode (2 days)
 
 ---
@@ -736,7 +736,7 @@ The existing visual design is solid and does not need a major overhaul. These ar
 
 ### Empty States
 All empty states currently use a large emoji + a single instruction line. Improve by adding a contextual action:
-- GianmunPage right panel empty: `✍️ AI 생성 버튼을 클릭하면 기안문 초안이 표시됩니다` + [AI 생성 버튼으로 이동] anchor that scrolls to the left panel
+- DraftPage right panel empty: `✍️ AI 생성 버튼을 클릭하면 기안문 초안이 표시됩니다` + [AI 생성 버튼으로 이동] anchor that scrolls to the left panel
 - MeetingPage right panel empty: `📋 회의 내용을 입력한 후 생성 버튼을 클릭하세요` — add estimated time: "(AI 처리 약 15-30초)"
 - ChatPage empty state: keep the example prompts (well-designed) — add a `font-size: 1.1rem` on `.empty-title` for more presence
 

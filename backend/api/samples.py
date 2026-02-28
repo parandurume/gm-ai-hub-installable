@@ -28,7 +28,7 @@ class RejectRequest(BaseModel):
 
 
 @router.get("/scan")
-async def scan_samples(pipeline: str = "gianmun"):
+async def scan_samples(pipeline: str = "draft"):
     """샘플 폴더 스캔 → 파일 목록."""
     files = svc.scan_samples(pipeline)
     return {"pipeline": pipeline, "files": files, "count": len(files)}
@@ -49,7 +49,7 @@ async def extract_samples(req: ExtractRequest):
 
 
 @router.get("/pending")
-async def get_pending(pipeline: str = "gianmun"):
+async def get_pending(pipeline: str = "draft"):
     """대기 중인 후보 예시."""
     pending = svc.load_pending(pipeline)
     return {"pipeline": pipeline, "pending": pending, "count": len(pending)}

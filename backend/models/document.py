@@ -46,8 +46,8 @@ class DocumentEditRequest(BaseModel):
     search: str | None = Field(None, description="replace 시 찾을 텍스트")
 
 
-class GianmunRequest(BaseModel):
-    """기안문 생성 요청."""
+class DraftRequest(BaseModel):
+    """공문서 초안 생성 요청."""
 
     doc_type: str = Field("일반기안", description="문서 종류")
     subject: str = Field(..., description="제목")
@@ -107,8 +107,8 @@ class AiBodyRequest(BaseModel):
     model: str | None = None
 
 
-class GianmunSaveRequest(BaseModel):
-    """기안문 HWPX 저장 요청."""
+class DraftSaveRequest(BaseModel):
+    """공문서 초안 HWPX 저장 요청."""
 
     doc_type: str = "일반기안"
     subject: str
@@ -117,8 +117,8 @@ class GianmunSaveRequest(BaseModel):
     output_path: str | None = None
 
 
-class GianmunValidateRequest(BaseModel):
-    """기안문 텍스트 검증 요청."""
+class DraftValidateRequest(BaseModel):
+    """공문서 초안 텍스트 검증 요청."""
 
     text: str = Field(..., description="검증할 텍스트")
 

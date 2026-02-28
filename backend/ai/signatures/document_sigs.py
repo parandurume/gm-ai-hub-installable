@@ -16,8 +16,8 @@ class ClassifyDocument(dspy.Signature):
     confidence: float = dspy.OutputField(desc="분류 신뢰도 (0~1)")
 
 
-class GenerateGianmunBody(dspy.Signature):
-    """기안문 본문을 생성한다."""
+class GenerateDraftBody(dspy.Signature):
+    """공문서 초안(Draft) 본문을 생성한다."""
 
     user_request: str = dspy.InputField(desc="사용자 지시")
     doc_type: str = dspy.InputField(desc="문서 종류")

@@ -14,54 +14,54 @@
 
 #### Sprint 1 — Quick Wins (~2일)
 
-- [ ] 🔴 **MeetingPage: AI 생성 중 피드백 없음** — `handleGenerate()`가 plain fetch로 15-60초 대기. 단계별 진행 표시(Phase labels) 추가 (`MeetingPage.jsx`)
-- [ ] 🔴 **GianmunPage: 첫 토큰 전 빈 화면** — `generating=true && preview===''`일 때 skeleton loader 추가 (`GianmunPage.jsx`)
-- [ ] 🔴 **ChatPage: 경과 시간 표시** — "응답 준비 중..." 상태에 elapsed timer 추가, 15초 후 힌트 표시 (`ChatPage.jsx`)
-- [ ] 🟡 **FilesPage: `window.confirm()` → ConfirmModal** — ChatPage는 수정됨, FilesPage 미적용 (`FilesPage.jsx:34`)
-- [ ] 🟡 **ChatPage: AI 메시지 복사 버튼** — assistant 메시지에 클립보드 복사 버튼 추가 (`ChatPage.jsx`)
-- [ ] 🟡 **ComplaintPage: 글자 수 카운터** — 민원 내용 textarea에 3000자 제한 + 카운터 (`ComplaintPage.jsx`)
-- [ ] 🟡 **에러 메시지 개선 (전체)** — 일반적 "실패" → 원인+해결 안내로 변경 (전체 페이지)
-- [ ] 🟡 **SetupWizard: 레이블 스테퍼 + Ollama 연결 강제** — 단계 번호+이름 표시, 미연결 시 다음 단계 차단 (`SetupWizard.jsx`)
-- [ ] 🔵 **SampleManager: `var(--bg2)` → `var(--paper2)`** — 미정의 CSS 변수 수정 (`SampleManager.jsx:351`)
-- [ ] 🔵 **ThinkingPanel: 펼침/접힘 애니메이션** — CSS transition 추가 (`components.css`)
-- [ ] 🔵 **Guard chip 등장 애니메이션** — fade+scale stagger 효과 (`components.css`)
+- [x] 🔴 **MeetingPage: AI 생성 중 피드백 없음** — 단계별 Phase labels 추가 (4초 주기 순환, chipIn 애니메이션)
+- [x] 🔴 **DraftPage: 첫 토큰 전 빈 화면** — skeleton loader 추가 (`generating && !preview` 분기)
+- [x] 🔴 **ChatPage: 경과 시간 표시** — 이미 구현됨 (elapsed timer + 15초 힌트)
+- [x] 🟡 **FilesPage: `window.confirm()` → ConfirmModal** — 이미 구현됨
+- [x] 🟡 **ChatPage: AI 메시지 복사 버튼** — 이미 구현됨 (handleCopyMessage + checkmark)
+- [x] 🟡 **ComplaintPage: 글자 수 카운터** — 이미 구현됨 (MAX_COMPLAINT=3000 + amber/red)
+- [x] 🟡 **에러 메시지 개선 (전체)** — `aiErrorMessage()` 헬퍼 추가, DraftPage/MeetingPage/ComplaintPage 적용
+- [x] 🟡 **SetupWizard: 레이블 스테퍼 + Ollama 연결 강제** — 번호+이름 스테퍼, 미연결 시 "다음" 비활성화
+- [x] 🔵 **SampleManager: `var(--bg2)` → `var(--paper2)`** — 이미 정상 (--bg2 → --paper2 매핑 존재)
+- [x] 🔵 **ThinkingPanel: 펼침/접힘 애니메이션** — 이미 구현됨 (0.25s max-height transition)
+- [x] 🔵 **Guard chip 등장 애니메이션** — 이미 구현됨 (staggered chipIn scale+fade)
 
 #### Sprint 2 — Core Improvements (~1주)
 
-- [ ] 🔴 **Topbar: 글로벌 AI-Busy 표시** — AiBusyContext 생성, 페이지 이동 시에도 AI 처리 중 표시 (`Topbar.jsx`, `App.jsx`)
-- [ ] 🔴 **MeetingPage: SSE 스트리밍 전환** — GianmunPage와 동일한 스트리밍 패턴으로 전환 (backend + `MeetingPage.jsx`)
-- [ ] 🟡 **Dashboard: 최근 작업 목록** — 최근 문서 10개 표시 (`Dashboard.jsx`)
-- [ ] 🟡 **DiffPage: 줄 번호 + 변경 요약** — 비개발자 가독성 향상 (`DiffPage.jsx`)
-- [ ] 🟡 **Topbar: Ollama 폴링 주기 단축** — 30초 → 10초, AI 에러 시 즉시 재확인 (`Topbar.jsx`)
+- [x] 🔴 **Topbar: 글로벌 AI-Busy 표시** — AiBusyContext + useAiBusy 훅, Topbar에 펄스 인디케이터, DraftPage/MeetingPage/ChatPage 연동
+- [x] 🔴 **MeetingPage: SSE 스트리밍 전환** — `/api/meeting/stream` SSE 엔드포인트 + 프론트엔드 실시간 스트리밍 (ThinkingPanel 포함)
+- [x] 🟡 **Dashboard: 최근 작업 목록** — 최근 문서 8개 표시 (기존 `/api/documents` 활용)
+- [x] 🟡 **DiffPage: 줄 번호 + 변경 요약** — 줄 번호 추가, 변경 요약 바 (+추가/-삭제/유사도%), 에러 메시지 개선
+- [x] 🟡 **Topbar: Ollama 폴링 주기 단축** — 30초 → 10초
 
 #### Strategic Enhancements (향후)
 
-- [ ] 🟡 **법령검색 → AI 채팅 연결** — 조문에 "AI에게 물어보기" 버튼, ChatPage로 이동 + 프롬프트 자동 입력
-- [ ] 🟡 **GianmunPage: 인라인 미리보기 편집** — preview pane에 편집 모드 토글
-- [ ] 🟡 **PII 검사 보고서 내보내기** — HWPX 형식 감사 기록 생성
-- [ ] 🟡 **SetupWizard: 인앱 모델 다운로드** — step 3에서 SSE pull-stream으로 모델 다운로드
+- [x] 🟡 **법령검색 → AI 채팅 연결** — RegulationPage 미리보기에 "AI에게 물어보기" 버튼 추가, ChatPage `location.state.prefill`로 프롬프트 자동 입력
+- [x] 🟡 **DraftPage: 인라인 미리보기 편집** — preview pane에 편집 모드 토글 ("수정"/"완료" 버튼, 완료 시 자동 재검증)
+- [x] 🟡 **PII 검사 보고서 내보내기** — HWPX 형식 감사 기록 생성 (`POST /api/pii/export-report`, PiiPage "보고서 내보내기" 버튼)
+- [x] 🟡 **SetupWizard: 인앱 모델 다운로드** — step 3에서 EventSource + progress bar로 인앱 모델 다운로드 (SettingsPage 패턴 재사용)
 
 ### STT / 회의록
 
 - [ ] 🔴 **STT PyInstaller 패키징** — `faster_whisper`, `ctranslate2` hidden imports를 `build/gm-ai-hub.spec`에 추가하고 `.pyd`/`.dll` 바이너리 포함 확인
 - [ ] 🔴 **STT 모델 첫 실행 UX** — 첫 음성 인식 시 모델 다운로드(~1.5 GB)가 시작됨. 설정 페이지에 "STT 모델 다운로드" 버튼 + 진행률 표시 추가
 - [ ] 🟡 **실시간 스트리밍 STT** — 녹음 중 WebSocket으로 부분 텍스트를 실시간으로 textarea에 반영 (faster-whisper VAD 기반 청킹)
-- [ ] 🟡 **STT 모델 설정** — 설정 페이지에서 tiny/base/small/medium/large-v3 모델 선택 옵션 추가
+- [x] 🟡 **STT 모델 설정** — 설정 > 일반 탭에 STT 모델 드롭다운 추가, `meeting.py`에서 DB 설정 읽어 `_get_stt_service()` 캐시 사용
 - [ ] 🔵 **회의록 화자 분리** — 발화자별 텍스트 구분 (pyannote.audio + faster-whisper 조합, GPU 필요)
 
 ### AI 기능
 
 - [ ] 🔴 **HyperCLOVA X OmniServe 연동** — NAVER Cloud OmniServe API(OpenAI 호환) 옵션 추가. `backend/ai/client.py`에 provider 선택 로직 구현. 인터넷 연결 시 사용 가능한 고성능 한국어 모델.
-- [ ] 🟡 **기안문 작성에 내 정보 자동 입력** — `department_name` / `officer_name`을 기안문 폼의 부서명·작성자 필드 기본값으로 설정
-- [ ] 🟡 **민원 답변에 내 정보 반영** — 답변 초안 서명란에 부서명·담당자 자동 삽입
-- [ ] 🟡 **AI 채팅 히스토리 저장** — SQLite에 대화 이력 저장 및 불러오기
+- [x] 🟡 **기안문 작성에 내 정보 자동 입력** — `draft.py`에 `_load_user_context()` 추가, AI 프롬프트에 부서명·담당자명 자동 주입
+- [x] 🟡 **민원 답변에 내 정보 반영** — `complaint.py`에 `_load_user_context()` 추가, AI 프롬프트 + HWPX "담당자" 필드에 자동 삽입
+- [x] 🟡 **AI 채팅 히스토리 저장** — SQLite `chat_sessions`+`chat_messages` 테이블, 세션 CRUD API, 프론트엔드 세션 바 자동저장/불러오기
 - [ ] 🔵 **RAG 개선** — nomic-embed-text 임베딩 기반 문서 검색을 벡터 DB(ChromaDB)로 전환
 
 ### 설정 / UX
 
-- [ ] 🟡 **STT 언어 설정** — 설정 페이지에서 음성 인식 언어 선택 (ko/en/auto)
+- [x] 🟡 **STT 언어 설정** — 설정 > 일반 탭에 STT 언어 드롭다운 추가 (ko/en/ja/zh/auto)
 - [x] 🟡 **작업 폴더 선택 다이얼로그** — FolderPicker 컴포넌트로 교체 (설정 > 일반 탭)
-- [ ] 🔵 **다크 모드** — CSS 변수 기반 테마 토글
+- [x] 🔵 **다크 모드** — `[data-theme="dark"]` CSS 변수 오버라이드, `useTheme` 훅 + Topbar 토글 버튼, localStorage 지속
 - [ ] 🔵 **앱 자동 업데이트** — 버전 체크 + 새 인스톨러 다운로드 알림
 
 ### 빌드 / 배포
@@ -74,14 +74,14 @@
   ```
 
   ctranslate2 `.dll` 파일을 `binaries` 섹션에 포함해야 할 수 있음
-- [ ] 🟡 **인스톨러 버전 동기화** — `pyproject.toml` version과 `installer/gm-ai-hub.iss` version을 빌드 시 자동으로 동기화
+- [x] 🟡 **인스톨러 버전 동기화** — `build.py`에 `_sync_installer_version()` 추가, `step_installer()` 시작 시 pyproject.toml→gm-ai-hub.iss 자동 동기화
 - [ ] 🟡 **코드 서명** — Windows Defender 경고 방지를 위한 EV 코드 서명 인증서 적용
 - [ ] 🔵 **자동 빌드 CI** — GitHub Actions 또는 로컬 스케줄러로 정기 빌드 자동화
 
 ### 보안 / 안정성
 
-- [ ] 🟡 **PII 검사 회의록 적용** — STT 변환 결과에 자동 PII 스캔 후 사용자에게 경고
-- [ ] 🟡 **API 인증** — 로컬호스트 전용이지만 CSRF 토큰 또는 Origin 헤더 검증 추가
+- [x] 🟡 **PII 검사 회의록 적용** — `POST /api/pii/scan-text` 엔드포인트 추가, MeetingPage 음성 인식 후 자동 PII 스캔 + 토스트 경고
+- [x] 🟡 **API 인증** — `OriginCheckMiddleware`로 POST/PUT/DELETE Origin 헤더 검증, WebSocket origin 체크
 - [ ] 🔵 **에러 리포팅** — 오류 발생 시 로컬 로그 파일 자동 수집 + "오류 보고" 버튼
 
 ### 역할 관리 (미래 기능)

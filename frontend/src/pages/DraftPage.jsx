@@ -1,11 +1,12 @@
 import { useState, useEffect, useRef } from 'react'
-import { fetchJSON, postJSON, API } from '../utils/api'
+import { fetchJSON, postJSON, API, aiErrorMessage } from '../utils/api'
 import ModelSelector from '../components/ModelSelector'
 import ThinkingPanel from '../components/ThinkingPanel'
 import FolderPicker from '../components/FolderPicker'
 import GuardSummaryBar from '../components/GuardSummaryBar'
 import AnnotatedPreview from '../components/AnnotatedPreview'
 import { useToast } from '../hooks/useToast'
+import { useAiBusy } from '../hooks/useAiBusy'
 
 const FALLBACK_TEMPLATES = ['일반기안', '협조전', '보고서', '계획서', '결과보고서', '회의록', '민원답변']
 
@@ -32,7 +33,7 @@ function TemplateCards({ templates, value, onChange }) {
   )
 }
 
-export default function GianmunPage() {
+export default function DraftPage() {
   const [templates, setTemplates] = useState([])
   const [form, setForm] = useState({ template: '', subject: '', body_instruction: '', model: null, output_path: '' })
   const [preview, setPreview] = useState('')
@@ -43,11 +44,13 @@ export default function GianmunPage() {
   const [pickerOpen, setPickerOpen] = useState(false)
   const [validation, setValidation] = useState(null)
   const [validating, setValidating] = useState(false)
+  const [editing, setEditing] = useState(false)
   const toast = useToast()
+  const { setBusy, clearBusy } = useAiBusy()
   const bodyRef = useRef(null)
 
   useEffect(() => {
-    fetchJSON(API.gianmunTemplates).then(d => {
+    fetchJSON(API.draftTemplates).then(d => {
       if (d?.templates) setTemplates(d.templates)
     }).catch(() => {})
   }, [])
@@ -59,6 +62,7 @@ export default function GianmunPage() {
   async function handleAiGenerate() {
     if (!form.subject) { toast('제목을 입력하세요', 'warning'); return }
     setGenerating(true)
+    setBusy('기안문 생성 중...')
     setPreview('')
     setThinking('')
     setFetchingUrls([])
@@ -66,7 +70,7 @@ export default function GianmunPage() {
 
     let fullText = ''
     try {
-      const res = await fetch(API.gianmunAiBody, {
+      const res = await fetch(API.draftAiBody, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -76,6 +80,12 @@ export default function GianmunPage() {
           model: form.model,
         }),
       })
+
+      if (!res.ok) {
+        let detail = ''
+        try { const body = await res.json(); detail = body.detail || '' } catch {}
+        throw Object.assign(new Error(detail || `HTTP ${res.status}`), { status: res.status })
+      }
 
       const reader = res.body.getReader()
       const decoder = new TextDecoder()
@@ -102,17 +112,18 @@ export default function GianmunPage() {
           }
         }
       }
-    } catch {
-      toast('AI 생성 실패', 'error')
+    } catch (err) {
+      toast(aiErrorMessage('AI 본문 생성', err), 'error')
     } finally {
       setGenerating(false)
+      clearBusy()
     }
 
     // 스트리밍 완료 후 자동 검증
     if (fullText) {
       setValidating(true)
       try {
-        const v = await postJSON(API.gianmunValidate, { text: fullText })
+        const v = await postJSON(API.draftValidate, { text: fullText })
         setValidation(v)
       } catch { /* 검증 실패는 무시 */ }
       finally { setValidating(false) }
@@ -129,17 +140,17 @@ export default function GianmunPage() {
         body: preview || form.body_instruction,
       }
       if (form.output_path.trim()) payload.output_path = form.output_path.trim()
-      const result = await postJSON(API.gianmunSave, payload)
+      const result = await postJSON(API.draftSave, payload)
       toast(`저장 완료: ${result?.path || ''}`, 'success')
-    } catch {
-      toast('저장 실패', 'error')
+    } catch (err) {
+      toast(aiErrorMessage('문서 저장', err), 'error')
     } finally {
       setSaving(false)
     }
   }
 
   return (
-    <div className="page-gianmun">
+    <div className="page-draft">
       <h2>기안문 작성</h2>
 
       <div className="split-view">
@@ -181,7 +192,7 @@ export default function GianmunPage() {
 
           <div className="form-group">
             <label>AI 모델</label>
-            <ModelSelector value={form.model} onChange={v => updateField('model', v)} task="gianmun_body" />
+            <ModelSelector value={form.model} onChange={v => updateField('model', v)} task="draft_body" />
           </div>
 
           <div className="form-group">
@@ -222,13 +233,38 @@ export default function GianmunPage() {
             loading={validating}
           />
           <div className="preview-pane">
-            <div className="preview-header">미리보기</div>
+            <div className="preview-header">
+              <span>미리보기</span>
+              {preview && !generating && (
+                <button className="btn btn-sm btn-secondary" onClick={() => {
+                  if (editing) {
+                    setEditing(false)
+                    postJSON(API.draftValidate, { text: preview }).then(setValidation).catch(() => {})
+                  } else {
+                    setEditing(true)
+                    setValidation(null)
+                  }
+                }}>
+                  {editing ? '완료' : '수정'}
+                </button>
+              )}
+            </div>
             {preview ? (
-              validation?.annotations?.length > 0 ? (
+              editing ? (
+                <textarea className="preview-edit-textarea" value={preview}
+                  onChange={e => setPreview(e.target.value)} />
+              ) : validation?.annotations?.length > 0 ? (
                 <AnnotatedPreview text={preview} annotations={validation.annotations} />
               ) : (
                 <div className="preview-body" style={{ whiteSpace: 'pre-wrap' }}>{preview}</div>
               )
+            ) : generating ? (
+              <div className="skeleton-loader">
+                <div className="skeleton-line" />
+                <div className="skeleton-line" />
+                <div className="skeleton-line" />
+                <div className="skeleton-line" />
+              </div>
             ) : (
               <div className="preview-empty">
                 <span style={{ fontSize: 48 }}>{'✍️'}</span>

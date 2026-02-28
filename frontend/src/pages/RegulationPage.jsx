@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { fetchJSON, API } from '../utils/api'
 import { useToast } from '../hooks/useToast'
 
@@ -8,6 +9,16 @@ export default function RegulationPage() {
   const [selected, setSelected] = useState(null)
   const [loading, setLoading] = useState(false)
   const toast = useToast()
+  const navigate = useNavigate()
+
+  function handleAskAi() {
+    const r = results[selected]
+    const articleText = r.content || r.text || ''
+    const title = r.title || r.law_name || ''
+    const article = r.article || ''
+    const prompt = `다음 법령 조문에 대해 설명해주세요.\n\n[${title} ${article}]\n${articleText}`
+    navigate('/chat', { state: { prefill: prompt } })
+  }
 
   async function handleSearch(e) {
     e.preventDefault()
@@ -80,6 +91,9 @@ export default function RegulationPage() {
               <div className="preview-body" style={{ whiteSpace: 'pre-wrap' }}>
                 {results[selected].content || results[selected].text || JSON.stringify(results[selected], null, 2)}
               </div>
+              <button className="btn btn-secondary" onClick={handleAskAi} style={{ marginTop: 12 }}>
+                AI에게 물어보기
+              </button>
             </div>
           ) : (
             <div className="preview-empty">

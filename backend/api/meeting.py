@@ -3,13 +3,16 @@
 from __future__ import annotations
 
 import asyncio
+import json
 
 import structlog
 from fastapi import APIRouter, File, HTTPException, UploadFile
+from fastapi.responses import StreamingResponse
 
 from backend.ai.client import GptOssClient
 from backend.ai.model_registry import ModelRegistry
 from backend.config import settings
+from backend.db.database import get_setting
 from backend.models.document import MeetingRequest
 from backend.services.hwpx_service import hwpx_service
 
@@ -18,6 +21,17 @@ log = structlog.get_logger()
 
 _client = GptOssClient(settings.OLLAMA_BASE_URL, settings.OLLAMA_MODEL)
 _registry = ModelRegistry(settings.OLLAMA_BASE_URL)
+
+_stt_cache: dict[str, object] = {}
+
+
+def _get_stt_service(model: str = "medium"):
+    """설정된 모델 크기에 맞는 SttService 인스턴스 반환 (캐시)."""
+    from backend.services.stt_service import SttService
+
+    if model not in _stt_cache:
+        _stt_cache[model] = SttService(model_size=model)
+    return _stt_cache[model]
 
 
 @router.get("/stt-status")
@@ -50,20 +64,31 @@ async def transcribe_audio(file: UploadFile = File(...)):
 
     faster-whisper로 로컬 처리 — 음성 데이터 외부 전송 없음.
     CPU-bound 작업이므로 스레드 풀 실행.
+    STT 모델·언어는 설정 DB에서 읽는다.
     """
-    from backend.services.stt_service import stt_service
+    from backend.db.database import get_setting
 
     audio_bytes = await file.read()
     if not audio_bytes:
         raise HTTPException(status_code=400, detail="빈 오디오 파일입니다.")
 
+    stt_model = await get_setting("stt_model", "medium")
+    stt_language = await get_setting("stt_language", "ko")
+    service = _get_stt_service(stt_model)
+
     try:
         loop = asyncio.get_event_loop()
-        text = await loop.run_in_executor(None, stt_service.transcribe, audio_bytes)
+        text = await loop.run_in_executor(None, service.transcribe, audio_bytes, stt_language)
     except RuntimeError as exc:
         raise HTTPException(status_code=503, detail=str(exc)) from exc
+    except Exception as exc:
+        log.error("음성 인식 실패", error=str(exc), error_type=type(exc).__name__)
+        raise HTTPException(
+            status_code=500,
+            detail=f"음성 인식 오류: {type(exc).__name__}: {exc}",
+        ) from exc
 
-    log.info("음성 인식 완료", action="transcribe", chars=len(text))
+    log.info("음성 인식 완료", action="transcribe", model=stt_model, language=stt_language, chars=len(text))
     return {"text": text}
 
 
@@ -91,8 +116,10 @@ async def create_meeting(req: MeetingRequest):
                 ),
             }
         ]
+        org_name = await get_setting("org_name", "소속기관")
         ai_result = await _client.chat(
-            messages=messages, task="meeting_minutes", model=resolved
+            messages=messages, task="meeting_minutes", model=resolved,
+            org_name=org_name,
         )
         summary = ai_result["content"]
         thinking = ai_result.get("thinking")
@@ -124,3 +151,63 @@ async def create_meeting(req: MeetingRequest):
         "path": str(result),
         "success": True,
     }
+
+
+@router.post("/stream")
+async def stream_meeting(req: MeetingRequest):
+    """회의록 AI 요약 SSE 스트리밍 + 완료 후 HWPX 생성."""
+    await _registry.refresh()
+    resolved, _ = _registry.select(
+        task="meeting_minutes",
+        env=settings.environment,
+        user_override=req.model,
+    )
+
+    org_name = await get_setting("org_name", "소속기관")
+
+    async def stream():
+        summary = req.content  # 내용 짧으면 그대로 사용
+        if len(req.content.strip()) > 100:
+            messages = [
+                {
+                    "role": "user",
+                    "content": (
+                        f"다음 회의 내용을 공문서 형식 회의록으로 정리하세요.\n\n"
+                        f"회의명: {req.title}\n"
+                        f"일시: {req.meeting_date}\n"
+                        f"참석자: {req.attendees}\n\n"
+                        f"내용:\n{req.content}"
+                    ),
+                }
+            ]
+            full_text = ""
+            async for event in _client.stream(
+                messages=messages,
+                task="meeting_minutes",
+                model=resolved,
+                org_name=org_name,
+            ):
+                if event["type"] == "token":
+                    full_text += event["content"]
+                yield f"data: {json.dumps(event, ensure_ascii=False)}\n\n"
+            summary = full_text or req.content
+
+        fields = {
+            "회의명": req.title,
+            "일시": req.meeting_date,
+            "참석자": req.attendees,
+            "내용": summary,
+            "장소": req.location,
+            "결정사항": req.decisions,
+            "후속조치": req.action_items,
+        }
+        output = req.output_path or str(
+            settings.WORKING_DIR / f"회의록_{req.title}.hwpx"
+        )
+        result_path = hwpx_service.create_from_template(
+            template_name="회의록", fields=fields, output_path=output
+        )
+        yield f"data: {json.dumps({'type': 'done', 'path': str(result_path)}, ensure_ascii=False)}\n\n"
+
+    log.info("회의록 스트리밍 생성", action="stream_meeting", model=resolved)
+    return StreamingResponse(stream(), media_type="text/event-stream")

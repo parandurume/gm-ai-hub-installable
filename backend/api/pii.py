@@ -2,10 +2,14 @@
 
 from __future__ import annotations
 
+import tempfile
+from datetime import datetime
 from pathlib import Path
 
 import structlog
 from fastapi import APIRouter
+from fastapi.responses import FileResponse
+from pydantic import BaseModel
 
 from backend.models.document import PiiBatchScanBody, PiiScanBody
 from backend.services.pii_service import pii_service
@@ -65,10 +69,71 @@ async def scan_pii(body: PiiScanBody):
     return response
 
 
+class PiiTextScanBody(BaseModel):
+    text: str
+    pii_types: list[str] | None = None
+
+
+@router.post("/scan-text")
+async def scan_text(body: PiiTextScanBody):
+    """텍스트에서 PII를 스캔한다 (파일 경로 없이)."""
+    result = pii_service.scan(body.text, body.pii_types)
+    findings = _flatten_findings(result.get("found", {}), body.text)
+    return {
+        "passed": result["passed"],
+        "total_found": result["total_found"],
+        "findings": findings,
+    }
+
+
 @router.post("/mask")
 async def mask_pii(body: PiiScanBody):
     """PII 마스킹."""
     return await pii_service.mask_file(body.path, body.pii_types)
+
+
+class ExportReportBody(BaseModel):
+    path: str
+    findings: list[dict]
+    total_found: int
+    scan_date: str | None = None
+
+
+@router.post("/export-report")
+async def export_report(body: ExportReportBody):
+    """PII 검사 보고서를 HWPX로 내보내기."""
+    from backend.services.hwpx_service import hwpx_service
+
+    filename = Path(body.path).name
+    scan_date = body.scan_date or datetime.now().strftime("%Y-%m-%d %H:%M")
+
+    lines = [
+        "# PII 검사 보고서\n",
+        f"- 파일: {filename}",
+        f"- 검사일: {scan_date}",
+        f"- 발견 건수: {body.total_found}건\n",
+        "## 발견 내역\n",
+        "| 유형 | 위치 | 길이 |",
+        "|------|------|------|",
+    ]
+    for f in body.findings:
+        lines.append(f"| {f.get('type', '-')} | {f.get('start', '-')} | {f.get('length', '-')} |")
+
+    lines.append("")
+    lines.append("## 조치 권고\n")
+    lines.append("위 개인정보를 마스킹하거나 삭제한 후 문서를 배포하세요.")
+
+    md = "\n".join(lines)
+    title = f"PII검사보고서_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+    tmp = Path(tempfile.mkdtemp()) / f"{title}.hwpx"
+    hwpx_service.create(tmp, md)
+    log.info("PII 보고서 내보내기", action="pii_export_report", findings=body.total_found)
+
+    return FileResponse(
+        path=tmp,
+        filename=f"{title}.hwpx",
+        media_type="application/vnd.hancom.hwpx",
+    )
 
 
 @router.post("/batch-scan")

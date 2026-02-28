@@ -104,7 +104,13 @@
 .thinking-panel.thinking-streaming { border-color: var(--teal); border-left: 3px solid var(--teal); }
 .thinking-toggle { padding: 6px 12px; cursor: pointer; font-size: 0.78rem; color: var(--ink3); display: flex; align-items: center; gap: 6px; border: none; background: none; width: 100%; text-align: left; font-family: var(--font-sans); }
 .thinking-toggle:focus-visible { outline: 2px solid var(--teal); outline-offset: -2px; }
-.thinking-content { padding: 8px 12px; font-size: 0.82rem; color: var(--ink2); border-top: 1px solid var(--border); white-space: pre-wrap; max-height: 200px; overflow-y: auto; }
+.thinking-content {
+  font-size: 0.82rem; color: var(--ink2); border-top: 1px solid var(--border);
+  white-space: pre-wrap; overflow: hidden;
+  max-height: 0; padding: 0 12px;
+  transition: max-height 0.25s ease-out, padding 0.25s ease-out;
+}
+.thinking-content-open { max-height: 200px; padding: 8px 12px; overflow-y: auto; }
 .thinking-pulse { width: 8px; height: 8px; border-radius: 50%; background: var(--teal); animation: pulse 1.2s ease-in-out infinite; margin-left: auto; }
 @keyframes pulse { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.4; transform: scale(0.8); } }
 
@@ -143,8 +149,8 @@
 }
 .form-group textarea { resize: vertical; min-height: 80px; line-height: 1.5; }
 .form-actions { display: flex; gap: 8px; margin-top: 12px; }
-.btn-success { background: #059669; color: var(--white); }
-.btn-success:hover { background: #047857; }
+.btn-success { background: var(--teal); color: var(--white); }
+.btn-success:hover { background: var(--teal2); }
 .btn-warning { background: var(--amber); color: var(--white); }
 .btn-warning:hover { opacity: 0.9; }
 .checkbox-label { display: flex; align-items: center; gap: 8px; font-size: 0.85rem; cursor: pointer; }
@@ -156,7 +162,7 @@
 .card-body { font-size: 0.85rem; }
 .stat-row { display: flex; justify-content: space-between; align-items: center; padding: 4px 0; }
 .stat-row + .stat-row { border-top: 1px solid var(--paper); }
-.badge-success { background: rgba(5,150,105,0.12); color: #059669; }
+.badge-success { background: rgba(5,150,105,0.12); color: var(--teal); }
 .badge-error { background: rgba(192,57,43,0.12); color: var(--red); }
 .badge-warning { background: rgba(212,134,10,0.12); color: var(--amber); }
 .badge-info { background: rgba(37,99,235,0.12); color: #2563eb; }
@@ -180,6 +186,29 @@
 /* ── 채팅 (확장) ──────────────────────────────────────── */
 .page-chat { display: flex; flex-direction: column; height: calc(100vh - 120px); }
 .chat-config { display: flex; gap: 16px; padding: 12px 0; border-bottom: 1px solid var(--border); margin-bottom: 8px; }
+
+/* ── Chat session bar ─────────────────────────────── */
+.chat-sessions-bar { display: flex; align-items: center; gap: 8px; padding: 8px 0; border-bottom: 1px solid var(--border); overflow-x: auto; }
+.chat-sessions-list { display: flex; gap: 6px; overflow-x: auto; flex: 1; padding: 2px 0; }
+.chat-session-chip { display: flex; align-items: center; gap: 2px; border: 1px solid var(--border); border-radius: 20px; background: var(--white); overflow: hidden; flex-shrink: 0; transition: border-color 0.15s; }
+.chat-session-chip:hover { border-color: var(--teal); }
+.chat-session-chip.active { border-color: var(--teal); background: rgba(13,148,136,0.06); }
+.chat-session-btn { display: flex; align-items: center; gap: 6px; padding: 5px 10px; border: none; background: none; cursor: pointer; font-family: var(--font-sans); font-size: 0.78rem; color: var(--ink2); }
+.chat-session-chip.active .chat-session-btn { color: var(--teal); font-weight: 600; }
+.chat-session-title { max-width: 120px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.chat-session-time { font-size: 0.68rem; color: var(--ink3); white-space: nowrap; }
+.chat-session-del { border: none; background: none; color: var(--ink3); cursor: pointer; padding: 4px 8px 4px 2px; font-size: 1rem; line-height: 1; transition: color 0.15s; }
+.chat-session-del:hover { color: var(--red); }
+
+/* ── Preview edit mode ─────────────────────────────── */
+.preview-header { display: flex; justify-content: space-between; align-items: center; }
+.preview-edit-textarea {
+  width: 100%; min-height: 300px; padding: 12px;
+  font-family: var(--font-sans); font-size: 0.9rem; line-height: 1.6;
+  border: 2px solid var(--teal); border-radius: var(--radius-sm);
+  resize: vertical; white-space: pre-wrap;
+}
+
 .chat-bubble { max-width: 80%; padding: 12px 16px; border-radius: 12px; font-size: 0.9rem; line-height: 1.5; }
 .chat-bubble.user { align-self: flex-end; background: var(--teal); color: var(--white); border-bottom-right-radius: 4px; }
 .chat-bubble.assistant { align-self: flex-start; background: var(--white); border: 1px solid var(--border); border-bottom-left-radius: 4px; }
@@ -228,9 +257,12 @@
 .markdown-body blockquote { border-left: 3px solid var(--teal); margin: 8px 0; padding: 4px 12px; color: var(--ink2); }
 
 /* ── Diff 뷰 ──────────────────────────────────────────── */
+.diff-summary { display: flex; gap: 8px; margin-bottom: 12px; }
 .diff-view { font-family: var(--font-mono); font-size: 0.8rem; line-height: 1.4; overflow-x: auto; }
-.diff-line { padding: 1px 8px; white-space: pre; }
-.diff-add { background: rgba(5,150,105,0.1); color: #059669; }
+.diff-line { display: flex; padding: 1px 0; }
+.diff-line-num { width: 40px; text-align: right; padding-right: 8px; color: var(--ink3); -webkit-user-select: none; user-select: none; opacity: 0.5; flex-shrink: 0; }
+.diff-line-text { white-space: pre; padding: 0 8px; }
+.diff-add { background: rgba(5,150,105,0.1); color: var(--teal); }
 .diff-del { background: rgba(192,57,43,0.1); color: var(--red); }
 .diff-hunk { color: var(--ink3); font-weight: 600; }
 
@@ -409,8 +441,12 @@
   display: inline-flex; align-items: center; gap: 4px;
   padding: 4px 12px; border-radius: 99px;
   font-size: 0.78rem; font-weight: 600;
+  animation: chipIn 0.3s ease-out both;
 }
-.guard-chip.pass { background: rgba(5,150,105,0.12); color: #059669; }
+.guard-chip:nth-child(2) { animation-delay: 80ms; }
+.guard-chip:nth-child(3) { animation-delay: 160ms; }
+@keyframes chipIn { from { opacity: 0; transform: scale(0.8); } to { opacity: 1; transform: scale(1); } }
+.guard-chip.pass { background: rgba(5,150,105,0.12); color: var(--teal); }
 .guard-chip.fail { background: rgba(192,57,43,0.12); color: var(--red); }
 .guard-chip.loading { background: var(--paper2); color: var(--ink3); }
 
@@ -435,7 +471,7 @@
   font-size: 0.78rem; font-weight: 700;
 }
 .pii-total-chip.has-pii { background: rgba(192,57,43,0.12); color: var(--red); }
-.pii-total-chip.clean   { background: rgba(5,150,105,0.12); color: #059669; }
+.pii-total-chip.clean   { background: rgba(5,150,105,0.12); color: var(--teal); }
 
 /* ── PII 3패널 레이아웃 ───────────────────────────────── */
 .pii-tri-view {
@@ -502,10 +538,23 @@
   width: 8px; height: 8px; border-radius: 50%;
   background: var(--ink3); flex-shrink: 0;
 }
-.ollama-status.online { background: rgba(5,150,105,0.1); color: #059669; }
-.ollama-status.online .ollama-dot { background: #059669; }
+.ollama-status.online { background: rgba(5,150,105,0.1); color: var(--teal); }
+.ollama-status.online .ollama-dot { background: var(--teal); }
 .ollama-status.offline { background: rgba(192,57,43,0.1); color: var(--red); }
 .ollama-status.offline .ollama-dot { background: var(--red); }
+.ai-busy-indicator {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 4px 10px; border-radius: var(--radius-sm);
+  font-size: 0.75rem; font-weight: 600;
+  background: rgba(0,122,94,0.1); color: var(--teal);
+  animation: aiBusyPulse 1.5s ease-in-out infinite;
+}
+.ai-busy-spinner {
+  display: inline-block; width: 12px; height: 12px;
+  border: 2px solid rgba(0,122,94,0.3); border-top-color: var(--teal);
+  border-radius: 50%; animation: spin 0.6s linear infinite;
+}
+@keyframes aiBusyPulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.6; } }
 
 /* ── 셋업 위저드 ─────────────────────────────────────── */
 .setup-wizard {
@@ -518,16 +567,33 @@
   box-shadow: var(--shadow); padding: 40px;
   max-width: 560px; width: 100%;
 }
-.setup-progress {
-  display: flex; gap: 8px; justify-content: center;
+.setup-stepper {
+  display: flex; gap: 12px; justify-content: center;
   margin-bottom: 32px;
 }
-.setup-step-dot {
-  width: 10px; height: 10px; border-radius: 50%;
-  background: var(--border); transition: all 0.2s;
+.setup-stepper-item {
+  display: flex; flex-direction: column; align-items: center;
+  gap: 4px; flex: 1; max-width: 72px; opacity: 0.45;
+  transition: opacity 0.2s;
 }
-.setup-step-dot.active { background: var(--teal); }
-.setup-step-dot.current { transform: scale(1.3); }
+.setup-stepper-item.active { opacity: 1; }
+.setup-stepper-num {
+  width: 28px; height: 28px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 0.78rem; font-weight: 700;
+  background: var(--border); color: var(--ink3);
+  transition: background 0.2s, color 0.2s, box-shadow 0.2s;
+}
+.setup-stepper-item.active .setup-stepper-num {
+  background: var(--teal); color: #fff;
+}
+.setup-stepper-item.current .setup-stepper-num {
+  box-shadow: 0 0 0 3px rgba(0,122,94,0.18);
+}
+.setup-stepper-label {
+  font-size: 0.68rem; font-weight: 500; color: var(--ink3);
+  white-space: nowrap;
+}
 .setup-step h1 { font-size: 1.6rem; font-weight: 700; text-align: center; color: var(--navy); }
 .setup-step h2 { font-size: 1.2rem; font-weight: 700; margin-bottom: 8px; }
 .setup-subtitle {
@@ -546,7 +612,7 @@
   display: inline-flex; padding: 8px 16px; border-radius: var(--radius-sm);
   font-weight: 600; font-size: 0.9rem;
 }
-.setup-status-badge.success { background: rgba(5,150,105,0.12); color: #059669; }
+.setup-status-badge.success { background: rgba(5,150,105,0.12); color: var(--teal); }
 .setup-status-badge.error { background: rgba(192,57,43,0.12); color: var(--red); }
 .setup-help {
   margin-top: 16px; padding: 16px; background: var(--paper);
@@ -554,14 +620,14 @@
 }
 .setup-help ol { margin: 8px 0 12px 20px; }
 .setup-help a { color: var(--teal); font-weight: 600; }
-.setup-ok-text { margin-top: 12px; color: #059669; font-size: 0.9rem; }
+.setup-ok-text { margin-top: 12px; color: var(--teal); font-size: 0.9rem; }
 .setup-model-list { font-size: 0.85rem; }
 .setup-model-list h4 { font-size: 0.85rem; font-weight: 600; margin-bottom: 8px; color: var(--ink2); }
 .setup-model-item {
   padding: 8px 12px; border-radius: var(--radius-sm);
   margin-bottom: 6px;
 }
-.setup-model-item.installed { background: rgba(5,150,105,0.08); color: #059669; }
+.setup-model-item.installed { background: rgba(5,150,105,0.08); color: var(--teal); }
 .setup-model-item.missing {
   background: rgba(212,134,10,0.08); color: var(--ink);
   display: flex; justify-content: space-between; align-items: center;
@@ -578,6 +644,12 @@
 .setup-help-text {
   margin-top: 12px; font-size: 0.82rem; color: var(--ink3); line-height: 1.5;
 }
+.setup-pull-progress { display: flex; align-items: center; gap: 8px; flex: 1; min-width: 200px; }
+.progress-bar-mini { flex: 1; height: 6px; background: var(--bg3); border-radius: 3px; overflow: hidden; }
+.progress-fill { height: 100%; background: var(--teal); transition: width 0.3s; }
+.setup-pull-status { font-size: 0.75rem; color: var(--ink3); min-width: 80px; white-space: nowrap; }
+.setup-pull-error { font-size: 0.75rem; color: var(--red); margin-top: 4px; width: 100%; }
+.btn-small { padding: 3px 10px; font-size: 0.78rem; }
 .setup-summary {
   background: var(--paper); border-radius: var(--radius-sm);
   padding: 16px; margin: 16px 0 24px;
@@ -621,7 +693,7 @@
 .status-dot-sm {
   width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0;
 }
-.status-dot-sm.ok   { background: #059669; }
+.status-dot-sm.ok   { background: var(--teal); }
 .status-dot-sm.err  { background: var(--red); }
 .status-dot-sm.warn { background: var(--amber); }
 .status-meta { color: var(--ink3); font-size: 0.75rem; }
@@ -661,6 +733,20 @@
   text-decoration: none; transition: all 0.15s;
 }
 .dashboard-quick-link:hover { border-color: var(--teal); color: var(--teal); background: rgba(0,122,94,0.04); }
+
+/* ── 최근 문서 ────────────────────────────────────────── */
+.recent-docs { margin-bottom: 20px; }
+.recent-docs-header { font-size: 0.82rem; font-weight: 600; color: var(--ink2); margin-bottom: 8px; }
+.recent-docs-list { display: flex; flex-direction: column; gap: 2px; }
+.recent-doc-item {
+  display: flex; align-items: center; gap: 8px;
+  padding: 6px 10px; border-radius: var(--radius-sm);
+  text-decoration: none; color: var(--ink);
+  font-size: 0.82rem; transition: background 0.12s;
+}
+.recent-doc-item:hover { background: var(--paper); }
+.recent-doc-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.recent-doc-time { font-size: 0.72rem; color: var(--ink3); white-space: nowrap; }
 
 /* ── PII finding 컨텍스트 스니펫 ──────────────────────── */
 .finding-row { display: flex; flex-direction: column; gap: 4px; padding: 8px 10px; }
@@ -726,6 +812,33 @@
   font-family: var(--font-sans); font-size: 0.9rem;
   background: transparent; color: var(--ink);
   padding: 2px 0;
+}
+
+/* ── 스켈레톤 로더 ──────────────────────────────────── */
+.skeleton-loader { padding: 16px; display: flex; flex-direction: column; gap: 12px; }
+.skeleton-line { height: 14px; background: var(--border); border-radius: 4px; animation: skeleton-pulse 1.5s ease-in-out infinite; }
+.skeleton-line:nth-child(1) { width: 80%; }
+.skeleton-line:nth-child(2) { width: 100%; }
+.skeleton-line:nth-child(3) { width: 90%; animation-delay: 0.15s; }
+.skeleton-line:nth-child(4) { width: 50%; animation-delay: 0.3s; }
+@keyframes skeleton-pulse { 0%, 100% { opacity: 0.4; } 50% { opacity: 1; } }
+
+/* ── 생성 중 피드백 ──────────────────────────────────── */
+.generation-progress {
+  display: flex; flex-direction: column; align-items: center;
+  justify-content: center; gap: 16px; padding: 48px 24px;
+  text-align: center; color: var(--ink2);
+}
+.generation-progress .spinner { width: 28px; height: 28px; }
+.generation-progress-text { display: flex; flex-direction: column; gap: 4px; }
+.generation-progress-text strong { font-size: 1rem; color: var(--ink); }
+.generation-progress-text span { font-size: 0.82rem; color: var(--ink3); }
+.phase-label { animation: chipIn 0.3s ease-out; }
+
+/* ── 채팅 상태 힌트 ──────────────────────────────────── */
+.chat-status-hint {
+  font-size: 0.78rem; color: var(--ink3); margin-top: 4px;
+  animation: chipIn 0.3s ease-out;
 }
 
 /* ── 반응형 오버라이드 (≤1024px) ──────────────────────── */

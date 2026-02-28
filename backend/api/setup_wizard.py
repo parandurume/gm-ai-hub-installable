@@ -73,6 +73,7 @@ async def check_ollama():
 
 class SetupCompleteRequest(BaseModel):
     """셋업 완료 요청."""
+    org_name: str = ""
     department_name: str = ""
     officer_name: str = ""
     ollama_url: str = "http://127.0.0.1:11434"
@@ -85,6 +86,7 @@ async def complete_setup(req: SetupCompleteRequest):
     async with get_db() as db:
         pairs = {
             "setup_completed": "true",
+            "org_name": req.org_name,
             "department_name": req.department_name,
             "officer_name": req.officer_name,
             "ollama_url": req.ollama_url,

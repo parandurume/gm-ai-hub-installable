@@ -195,12 +195,14 @@ class DocumentService:
     @staticmethod
     def _extract_pdf_text(path: Path) -> str:
         try:
-            import fitz  # PyMuPDF
+            import pdfplumber
 
-            doc = fitz.open(str(path))
-            return "\n".join(page.get_text() for page in doc)
+            with pdfplumber.open(str(path)) as pdf:
+                return "\n".join(
+                    page.extract_text() or "" for page in pdf.pages
+                )
         except ImportError:
-            return "[PyMuPDF 미설치 — pip install PyMuPDF]"
+            return "[pdfplumber 미설치 — pip install pdfplumber]"
 
     @staticmethod
     def _extract_docx_text(path: Path) -> str:

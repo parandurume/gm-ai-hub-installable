@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { fetchJSON, postJSON, API } from '../utils/api'
 import FileTable from '../components/FileTable'
 import PiiSummaryBar from '../components/PiiSummaryBar'
@@ -57,6 +57,7 @@ export default function PiiPage() {
   const [activeIndex, setActiveIndex] = useState(null)
   const [batchResult, setBatchResult] = useState(null)
   const [loading, setLoading] = useState(false)
+  const [exporting, setExporting] = useState(false)
   const toast = useToast()
 
   useEffect(() => {
@@ -101,6 +102,38 @@ export default function PiiPage() {
     }
   }
 
+  async function handleExportReport() {
+    if (!scanResult || !selected) return
+    setExporting(true)
+    try {
+      const res = await fetch(API.piiExportReport, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          path: selected,
+          findings: scanResult.findings || [],
+          total_found: scanResult.total_found || 0,
+        }),
+      })
+      if (!res.ok) throw new Error(`HTTP ${res.status}`)
+      const blob = await res.blob()
+      const cd = res.headers.get('content-disposition') || ''
+      const match = cd.match(/filename\*?=(?:UTF-8''|"?)([^";]+)/)
+      const filename = match ? decodeURIComponent(match[1]) : `PII검사보고서_${Date.now()}.hwpx`
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = filename
+      a.click()
+      URL.revokeObjectURL(url)
+      toast('보고서 다운로드 완료', 'success')
+    } catch (e) {
+      toast(`보고서 내보내기 실패: ${e.message}`, 'error')
+    } finally {
+      setExporting(false)
+    }
+  }
+
   async function handleBatchScan() {
     if (!files.length) { toast('파일이 없습니다', 'warning'); return }
     setLoading(true)
@@ -124,6 +157,9 @@ export default function PiiPage() {
       <div className="page-header">
         <h2>개인정보(PII) 관리</h2>
         <div className="page-actions">
+          <button className="btn btn-secondary btn-sm" onClick={handleExportReport} disabled={!scanResult || exporting}>
+            {exporting ? '내보내는 중...' : '보고서 내보내기'}
+          </button>
           <button className="btn btn-secondary btn-sm" onClick={handleBatchScan} disabled={loading}>
             일괄 스캔
           </button>

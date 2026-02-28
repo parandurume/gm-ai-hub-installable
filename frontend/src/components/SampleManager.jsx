@@ -3,9 +3,9 @@ import { useState, useEffect } from 'react'
 import { fetchJSON, postJSON, API } from '../utils/api'
 import { useToast } from '../hooks/useToast'
 
-const PIPELINES = ['gianmun', 'docent', 'complaint', 'meeting']
+const PIPELINES = ['draft', 'docent', 'complaint', 'meeting']
 const PIPELINE_LABELS = {
-  gianmun: '기안문',
+  draft: '기안문',
   docent: '도슨트',
   complaint: '민원',
   meeting: '회의록',
@@ -13,7 +13,7 @@ const PIPELINE_LABELS = {
 const DOC_TYPES = ['일반기안', '협조전', '보고서', '계획서', '결과보고서', '회의록', '민원답변']
 
 export default function SampleManager() {
-  const [pipeline, setPipeline] = useState('gianmun')
+  const [pipeline, setPipeline] = useState('draft')
   const [files, setFiles] = useState([])
   const [candidates, setCandidates] = useState([])
   const [scanning, setScanning] = useState(false)
@@ -267,7 +267,7 @@ function CandidateCard({ candidate, pipeline, selected, onToggle, onChange }) {
         </div>
 
         {/* Editable fields — pipeline-specific */}
-        {pipeline === 'gianmun' && (
+        {pipeline === 'draft' && (
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: 8 }}>
             <div>
               <label style={{ fontSize: '0.75rem', color: 'var(--ink3)' }}>문서 유형</label>

@@ -1,12 +1,12 @@
-"""기안문 관련 Pydantic 모델."""
+"""공문서 초안(Draft) 관련 Pydantic 모델."""
 
 from __future__ import annotations
 
 from pydantic import BaseModel, Field
 
 
-class GianmunTemplate(BaseModel):
-    """기안문 템플릿 정보."""
+class DraftTemplate(BaseModel):
+    """공문서 초안 템플릿 정보."""
 
     name: str
     description: str = ""
@@ -15,8 +15,8 @@ class GianmunTemplate(BaseModel):
     auto_fields: list[str] = Field(default_factory=list)
 
 
-class GianmunResult(BaseModel):
-    """기안문 생성 결과."""
+class DraftResult(BaseModel):
+    """공문서 초안 생성 결과."""
 
     output_path: str
     template_used: str

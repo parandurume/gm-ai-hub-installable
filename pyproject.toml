@@ -4,8 +4,9 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "gm-ai-hub-app"
-version = "3.4.0"
+version = "3.5.0"
 description = "GM-AI-Hub Desktop - 광명시 AI 통합 공문서 시스템 (설치형)"
+license = {text = "GM-Social-1.0"}
 requires-python = ">=3.11"
 dependencies = [
     "fastapi>=0.115",
@@ -17,7 +18,7 @@ dependencies = [
     "python-dotenv>=1.0",
     "structlog>=24.0",
     "watchdog>=4.0",
-    "PyMuPDF>=1.24",
+    "pdfplumber>=0.11",
     "python-docx>=1.1",
     "openpyxl>=3.1",
     "lxml>=5.2",

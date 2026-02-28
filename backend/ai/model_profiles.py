@@ -97,7 +97,7 @@ BUILTIN_PROFILES: dict[str, ModelProfile] = {
         supports_thinking=False,
         context_len=32768,
         strengths=["한국어", "공문서", "안정성"],
-        best_for=["gianmun_body", "plan_document", "budget_calc"],
+        best_for=["draft_body", "plan_document", "budget_calc"],
     ),
     "qwen3:8b": ModelProfile(
         id="qwen3:8b",
@@ -119,7 +119,7 @@ BUILTIN_PROFILES: dict[str, ModelProfile] = {
         supports_thinking=True,
         context_len=32768,
         strengths=["균형", "한국어", "추론"],
-        best_for=["gianmun_body", "complaint_resp", "meeting_minutes"],
+        best_for=["draft_body", "complaint_resp", "meeting_minutes"],
     ),
     "exaone3.5:7.8b": ModelProfile(
         id="exaone3.5:7.8b",
@@ -130,7 +130,7 @@ BUILTIN_PROFILES: dict[str, ModelProfile] = {
         supports_thinking=False,
         context_len=32768,
         strengths=["한국어특화", "공문서", "빠른응답"],
-        best_for=["classify", "gianmun_body", "complaint_resp"],
+        best_for=["classify", "draft_body", "complaint_resp"],
     ),
     "deepseek-r1:8b": ModelProfile(
         id="deepseek-r1:8b",

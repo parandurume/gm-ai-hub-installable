@@ -3,7 +3,7 @@ MIPROv2 최적화 실행기 (RULE-13: num_threads=1).
 
 사용법:
   python -m backend.ai.optimization.miprov2_runner \\
-    --pipeline gianmun --model qwen3:32b --trials 15
+    --pipeline draft --model qwen3:32b --trials 15
 """
 
 from __future__ import annotations
@@ -23,20 +23,20 @@ from backend.ai.optimization.metrics import combined_metric
 from backend.ai.pipelines import (
     AiDocentPlanPipeline,
     ComplaintDraftPipeline,
-    GianmunBodyPipeline,
+    DraftBodyPipeline,
     MeetingSummaryPipeline,
 )
 
 PIPELINE_MAP = {
     "docent": AiDocentPlanPipeline,
-    "gianmun": GianmunBodyPipeline,
+    "draft": DraftBodyPipeline,
     "complaint": ComplaintDraftPipeline,
     "meeting": MeetingSummaryPipeline,
 }
 
 METRIC_MAP = {
     "docent": combined_metric,
-    "gianmun": combined_metric,
+    "draft": combined_metric,
     "complaint": combined_metric,
     "meeting": combined_metric,
 }
@@ -139,7 +139,7 @@ async def run_optimization(
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="MIPROv2 파이프라인 최적화")
     parser.add_argument("--pipeline", required=True,
-                        choices=["docent", "gianmun", "complaint", "meeting"])
+                        choices=["docent", "draft", "complaint", "meeting"])
     parser.add_argument("--model", default="qwen3:32b")
     parser.add_argument("--trials", type=int, default=15)
     parser.add_argument("--max-bootstrapped-demos", type=int, default=3)

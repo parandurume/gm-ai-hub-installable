@@ -1,6 +1,7 @@
 {
   "name": "gm-ai-hub-frontend",
   "private": true,
+  "license": "GM-Social-1.0",
   "version": "2.0.0",
   "type": "module",
   "scripts": {

@@ -20,7 +20,7 @@ _running_task: asyncio.Task | None = None
 async def optimization_status():
     """파이프라인별 최적화 현황."""
     pipelines = []
-    for name in ["docent", "gianmun", "complaint", "meeting"]:
+    for name in ["docent", "draft", "complaint", "meeting"]:
         check = await check_optimization_needed(name)
 
         # 최근 최적화 정보
@@ -91,14 +91,14 @@ async def reload_optimized():
     from backend.ai.pipelines import (
         AiDocentPlanPipeline,
         ComplaintDraftPipeline,
-        GianmunBodyPipeline,
+        DraftBodyPipeline,
         MeetingSummaryPipeline,
     )
 
     results = {}
     for name, cls in [
         ("docent", AiDocentPlanPipeline),
-        ("gianmun", GianmunBodyPipeline),
+        ("draft", DraftBodyPipeline),
         ("complaint", ComplaintDraftPipeline),
         ("meeting", MeetingSummaryPipeline),
     ]:

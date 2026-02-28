@@ -73,7 +73,7 @@ async def build_dataset(
     for e in examples:
         try:
             ex = dspy.Example(**e)
-            if pipeline_name == "gianmun":
+            if pipeline_name == "draft":
                 ex = ex.with_inputs("user_request", "doc_type", "current_year")
             elif pipeline_name == "docent":
                 ex = ex.with_inputs(
@@ -96,7 +96,7 @@ def _generate_synthetic_examples(pipeline_name: str, count: int) -> list[dict]:
     """합성 예시 생성."""
     year = date.today().year
     templates: dict[str, dict] = {
-        "gianmun": {
+        "draft": {
             "user_request": "AI 도슨트 육성사업 협조 요청",
             "doc_type": "협조전",
             "current_year": year,
@@ -132,7 +132,7 @@ def _generate_synthetic_examples(pipeline_name: str, count: int) -> list[dict]:
             "classification": "단순질의",
             "response_body": (
                 "귀하의 민원에 대하여 다음과 같이 답변드립니다.\n\n"
-                f"AI 도슨트 교육 신청은 {year}년 중 광명시 공식 홈페이지에서 가능합니다."
+                f"AI 도슨트 교육 신청은 {year}년 중 해당 지자체 공식 홈페이지에서 가능합니다."
             ),
         },
         "meeting": {

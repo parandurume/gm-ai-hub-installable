@@ -22,5 +22,6 @@ data/samples/**/*.hwpx
 data/samples/**/*.hwp
 # Installer output
 installer/Output/
-# Claude Code local settings (machine-specific permissions)
-.claude/settings.local.json
+# Claude Code (machine-specific settings and agent memory)
+.claude
+CLAUDE.md

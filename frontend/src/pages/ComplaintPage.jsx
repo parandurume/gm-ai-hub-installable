@@ -1,8 +1,10 @@
 import { useState } from 'react'
-import { postJSON, API } from '../utils/api'
+import { postJSON, API, aiErrorMessage } from '../utils/api'
 import ModelSelector from '../components/ModelSelector'
 import ThinkingPanel from '../components/ThinkingPanel'
 import { useToast } from '../hooks/useToast'
+
+const MAX_COMPLAINT = 3000
 
 export default function ComplaintPage() {
   const [text, setText] = useState('')
@@ -26,8 +28,8 @@ export default function ComplaintPage() {
       setClassification(classData)
       setDraft(draftData)
       toast('분석 및 답변 초안 생성 완료', 'success')
-    } catch {
-      toast('처리 실패', 'error')
+    } catch (err) {
+      toast(aiErrorMessage('민원 분석', err), 'error')
     } finally {
       setLoading(false)
     }
@@ -39,8 +41,8 @@ export default function ComplaintPage() {
     try {
       const data = await postJSON(API.complaintClassify, { text, model })
       setClassification(data)
-    } catch {
-      toast('분류 실패', 'error')
+    } catch (err) {
+      toast(aiErrorMessage('민원 분류', err), 'error')
     } finally {
       setLoading(false)
     }
@@ -53,11 +55,16 @@ export default function ComplaintPage() {
       <div className="split-view">
         <div className="split-left">
           <div className="form-group">
-            <label>민원 내용</label>
+            <label style={{ display: 'flex', justifyContent: 'space-between' }}>
+              <span>민원 내용</span>
+              <span className={`char-counter ${text.length >= MAX_COMPLAINT ? 'char-counter-red' : text.length >= MAX_COMPLAINT * 0.8 ? 'char-counter-amber' : ''}`}>
+                {text.length}/{MAX_COMPLAINT}
+              </span>
+            </label>
             <textarea
               rows={12}
               value={text}
-              onChange={e => setText(e.target.value)}
+              onChange={e => setText(e.target.value.slice(0, MAX_COMPLAINT))}
               placeholder="민원인의 민원 내용을 입력하세요..."
             />
           </div>

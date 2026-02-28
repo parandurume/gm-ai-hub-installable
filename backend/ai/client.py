@@ -25,7 +25,7 @@ TASK_REASONING: dict[str, ReasoningLevel] = {
     "classify": "low",
     "summarize": "low",
     "incoming_doc": "low",
-    "gianmun_body": "medium",
+    "draft_body": "medium",
     "meeting_minutes": "medium",
     "complaint_resp": "medium",
     "plan_document": "high",
@@ -33,12 +33,13 @@ TASK_REASONING: dict[str, ReasoningLevel] = {
     "docent_plan": "high",
 }
 
-SYSTEM_PROMPT_BASE = """당신은 대한민국 광명시청 공문서 작성 및 지역사회 분석을 지원하는 전문 AI입니다.
+SYSTEM_PROMPT_BASE = """당신은 대한민국 지방자치단체 공문서 작성 및 지역사회 분석을 지원하는 전문 AI입니다.
 
 [핵심 규칙]
+- 사용자의 질문 언어에 맞춰 답변합니다. 한국어 질문에는 한국어로, 영어 질문에는 영어로 응답합니다. 단, 사용자가 특정 언어를 요청하면 그 지시를 따릅니다.
 - 현재 연도: {year}년. 이 연도 이전 날짜(예: 2023, 2024, 2025)를 생성하면 절대 안 됩니다.
 - 공문서는 「행정업무의 효율적 운영에 관한 규정」을 준수합니다.
-- 기관명은 "광명시청"을 사용합니다. "○○시청" 같은 자리표시자는 금지합니다.
+- 기관명은 "{org_name}"을 사용합니다. "○○시청" 같은 자리표시자는 금지합니다.
 - 이 초안은 담당자 검토 후 사용해야 합니다.
 
 [작성 지침]
@@ -80,17 +81,18 @@ class GptOssClient:
     async def chat(
         self,
         messages: list[dict],
-        task: str = "gianmun_body",
+        task: str = "draft_body",
         system_extra: str = "",
         temperature: float = 0.1,
         max_tokens: int = 4096,
         model: str | None = None,
+        org_name: str = "소속기관",
     ) -> dict:
         """단일 응답. Returns {'content': str, 'thinking': str|None, 'model': str}."""
         actual_model = model or self.model
         reasoning = TASK_REASONING.get(task, "medium")
         system = SYSTEM_PROMPT_BASE.format(
-            year=date.today().year, reasoning=reasoning
+            year=date.today().year, reasoning=reasoning, org_name=org_name,
         ) + system_extra
 
         try:
@@ -115,15 +117,16 @@ class GptOssClient:
     async def stream(
         self,
         messages: list[dict],
-        task: str = "gianmun_body",
+        task: str = "draft_body",
         system_extra: str = "",
         model: str | None = None,
+        org_name: str = "소속기관",
     ) -> AsyncIterator[dict]:
         """스트리밍. Yields {'type': 'thinking'|'token', 'content': str}."""
         actual_model = model or self.model
         reasoning = TASK_REASONING.get(task, "medium")
         system = SYSTEM_PROMPT_BASE.format(
-            year=date.today().year, reasoning=reasoning
+            year=date.today().year, reasoning=reasoning, org_name=org_name,
         ) + system_extra
 
         try:

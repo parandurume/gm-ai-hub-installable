@@ -39,7 +39,7 @@ class GenerateDocentBackground(dspy.Signature):
 
     project_title: str = dspy.InputField(desc="사업명")
     current_year: int = dspy.InputField(desc="현재 연도")
-    gwangmyeong_context: str = dspy.InputField(desc="광명시 관련 맥락", default="")
+    city_context: str = dspy.InputField(desc="지역 관련 맥락", default="")
     ai_trend_context: str = dspy.InputField(desc="AI 트렌드 맥락", default="")
     background_paragraphs: list[str] = dspy.OutputField(
         desc="추진배경 문단 목록 (3~5개)"
