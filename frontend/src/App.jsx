@@ -4,6 +4,8 @@ import Sidebar from './components/Sidebar'
 import Topbar from './components/Topbar'
 import { ToastProvider } from './hooks/useToast'
 import { AiBusyProvider } from './hooks/useAiBusy'
+import { TourProvider, useTour } from './hooks/useTour'
+import TourOverlay from './components/TourOverlay'
 import LoadingSpinner from './components/LoadingSpinner'
 import { fetchJSON, API } from './utils/api'
 
@@ -26,6 +28,7 @@ function SetupGuard({ children }) {
   const [status, setStatus] = useState('loading') // loading | setup | ready
   const location = useLocation()
   const navigate = useNavigate()
+  const { startTour, isCompleted: tourCompleted } = useTour()
 
   useEffect(() => {
     fetchJSON(API.setupStatus)
@@ -44,6 +47,14 @@ function SetupGuard({ children }) {
     }
   }, [status, location.pathname, navigate])
 
+  // 최초 실행 시 가이드 투어 자동 시작
+  useEffect(() => {
+    if (status === 'ready' && !tourCompleted && location.pathname !== '/setup') {
+      const timer = setTimeout(() => startTour(), 500)
+      return () => clearTimeout(timer)
+    }
+  }, [status]) // eslint-disable-line react-hooks/exhaustive-deps
+
   if (status === 'loading') return <LoadingSpinner />
   return children
 }
@@ -57,6 +68,7 @@ export default function App() {
     <BrowserRouter>
       <ToastProvider>
         <AiBusyProvider>
+        <TourProvider>
         <SetupGuard>
           <Suspense fallback={<LoadingSpinner />}>
             <Routes>
@@ -85,11 +97,13 @@ export default function App() {
                       </Suspense>
                     </main>
                   </div>
+                  <TourOverlay />
                 </div>
               } />
             </Routes>
           </Suspense>
         </SetupGuard>
+        </TourProvider>
         </AiBusyProvider>
       </ToastProvider>
     </BrowserRouter>

@@ -4,6 +4,7 @@ import { fetchJSON, API } from '../utils/api'
 import ConfirmModal from './ConfirmModal'
 import { useAiBusy } from '../hooks/useAiBusy'
 import { useTheme } from '../hooks/useTheme'
+import { useTour } from '../hooks/useTour'
 
 const PAGE_TITLES = {
   '/':           '대시보드',
@@ -50,6 +51,7 @@ export default function Topbar({ onToggleSidebar }) {
   const title = PAGE_TITLES[pathname] || ''
   const { busy, taskLabel } = useAiBusy()
   const { theme, toggle: toggleTheme } = useTheme()
+  const { startTour } = useTour()
   const [ollamaOk, setOllamaOk] = useState(null)
   const [quitConfirm, setQuitConfirm] = useState(false)
   const [quitting, setQuitting] = useState(false)
@@ -113,6 +115,12 @@ export default function Topbar({ onToggleSidebar }) {
             <span className="ollama-dot" />
             {ollamaOk === null ? 'Ollama 확인 중' : ollamaOk ? 'Ollama 연결됨' : 'Ollama 오프라인'}
           </span>
+          <button
+            className="btn-quit"
+            onClick={startTour}
+            title="사용 가이드"
+            aria-label="사용 가이드"
+          >?</button>
           <button
             className="btn-quit"
             onClick={toggleTheme}

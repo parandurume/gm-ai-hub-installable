@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
 import { fetchJSON, postJSON, API, aiErrorMessage } from '../utils/api'
+import FolderPicker from '../components/FolderPicker'
 import ModelSelector from '../components/ModelSelector'
 import ThinkingPanel from '../components/ThinkingPanel'
 import { useToast } from '../hooks/useToast'
@@ -81,6 +82,9 @@ export default function MeetingPage() {
   const [streamingThinking, setStreamingThinking] = useState('')
   const [sttCached, setSttCached] = useState(null)
   const [sttAvailable, setSttAvailable] = useState(null)
+  const [savePath, setSavePath] = useState('')
+  const [savePickerOpen, setSavePickerOpen] = useState(false)
+  const [showSaveOptions, setShowSaveOptions] = useState(false)
 
   const mediaRef = useRef(null)
   const chunksRef = useRef([])
@@ -99,6 +103,9 @@ export default function MeetingPage() {
         setSttAvailable(null)
         setSttCached(null)
       })
+    fetchJSON(API.settings)
+      .then(s => { if (s.meeting_save_dir) setSavePath(s.meeting_save_dir) })
+      .catch(() => {})
   }, [])
 
   function updateField(key, val) {
@@ -197,6 +204,7 @@ export default function MeetingPage() {
           decisions: form.decisions,
           action_items: form.action_items,
           model: form.model,
+          output_path: savePath || undefined,
         }),
       })
 
@@ -432,6 +440,39 @@ export default function MeetingPage() {
                 </div>
               )}
             </div>
+
+            {/* ── 저장 위치 ── */}
+            <div className="meeting-details-section">
+              <button
+                type="button"
+                className="meeting-details-toggle"
+                onClick={() => setShowSaveOptions(v => !v)}
+              >
+                <span>{showSaveOptions ? '\u25BE' : '\u25B8'} 저장 위치</span>
+                <span className="meeting-details-hint">
+                  {savePath || '기본 (작업 폴더)'}
+                </span>
+              </button>
+              {showSaveOptions && (
+                <div className="meeting-details-body">
+                  <div className="save-path-row">
+                    <div className={`save-path-display${savePath ? '' : ' empty'}`}>
+                      {savePath || '기본 경로 (작업 폴더)'}
+                    </div>
+                    {savePath && (
+                      <button className="save-path-clear" onClick={() => setSavePath('')} title="초기화">&times;</button>
+                    )}
+                    <button className="btn btn-browse" onClick={() => setSavePickerOpen(true)}>찾아보기</button>
+                  </div>
+                </div>
+              )}
+            </div>
+            <FolderPicker
+              open={savePickerOpen}
+              onClose={() => setSavePickerOpen(false)}
+              onSelect={path => { setSavePath(path); setSavePickerOpen(false) }}
+              mode="folder"
+            />
 
             <div className="form-group">
               <label>AI 모델</label>

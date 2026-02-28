@@ -22,6 +22,8 @@ export const API = {
   complaintClassify:  `${BASE}/complaint/classify`,
   complaintDraft:     `${BASE}/complaint/draft`,
   regulationSearch:   `${BASE}/regulation/search`,
+  regulationStatus:   `${BASE}/regulation/status`,
+  regulationSetOc:    `${BASE}/regulation/oc`,
   piiScanText:        `${BASE}/pii/scan-text`,
   piiScan:            `${BASE}/pii/scan`,
   piiMask:            `${BASE}/pii/mask`,

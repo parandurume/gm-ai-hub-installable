@@ -32,6 +32,7 @@ async def get_settings():
         "pii_scan_on_export": settings.PII_SCAN_ON_EXPORT,
         "stt_model": saved.get("stt_model", "medium"),
         "stt_language": saved.get("stt_language", "ko"),
+        "meeting_save_dir": saved.get("meeting_save_dir", ""),
         "saved": saved,
     }
 

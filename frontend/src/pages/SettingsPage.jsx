@@ -23,6 +23,7 @@ export default function SettingsPage() {
   const [optProgress, setOptProgress] = useState(null)
   const [loading, setLoading] = useState(false)
   const [dirPickerOpen, setDirPickerOpen] = useState(false)
+  const [meetingDirPickerOpen, setMeetingDirPickerOpen] = useState(false)
   const [pullState, setPullState] = useState({}) // { [modelId]: { active, status, pct, error } }
   const pullEsRef = useRef({}) // { [modelId]: EventSource } — for cancel
   const toast = useToast()
@@ -247,6 +248,24 @@ export default function SettingsPage() {
               <option value="auto">자동 감지</option>
             </select>
           </div>
+          <div className="form-group">
+            <label>회의록 저장 폴더</label>
+            <div className="save-path-row">
+              <div className={`save-path-display${settings.meeting_save_dir ? '' : ' empty'}`}>
+                {settings.meeting_save_dir || '기본 (작업 폴더)'}
+              </div>
+              {settings.meeting_save_dir && (
+                <button className="save-path-clear" onClick={() => updateSetting('meeting_save_dir', '')} title="초기화">&times;</button>
+              )}
+              <button className="btn btn-browse" onClick={() => setMeetingDirPickerOpen(true)}>찾아보기</button>
+            </div>
+          </div>
+          <FolderPicker
+            open={meetingDirPickerOpen}
+            onClose={() => setMeetingDirPickerOpen(false)}
+            onSelect={path => { updateSetting('meeting_save_dir', path); setMeetingDirPickerOpen(false) }}
+            mode="folder"
+          />
           <button className="btn btn-primary" onClick={handleSaveSettings} disabled={loading}>
             {loading ? '저장 중...' : '설정 저장'}
           </button>

@@ -897,6 +897,57 @@
   padding: 2px 0;
 }
 
+/* ── 가이드 투어 ──────────────────────────────────────── */
+.tour-overlay {
+  position: fixed; inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  z-index: 2000;
+  display: flex; align-items: center; justify-content: center;
+  animation: tourFadeIn 0.2s ease-out;
+}
+.tour-card {
+  background: var(--white);
+  border-radius: var(--radius);
+  padding: 32px 36px;
+  max-width: 480px; width: 90%;
+  text-align: center;
+  box-shadow: 0 12px 48px rgba(0, 0, 0, 0.25);
+  animation: tourSlideUp 0.25s ease-out;
+}
+.tour-icon { font-size: 3rem; margin-bottom: 12px; }
+.tour-step-label {
+  font-size: 0.75rem; color: var(--ink3);
+  font-weight: 600; margin-bottom: 4px;
+}
+.tour-title {
+  font-size: 1.2rem; font-weight: 700;
+  margin-bottom: 12px; color: var(--ink);
+}
+.tour-description {
+  font-size: 0.9rem; line-height: 1.7;
+  color: var(--ink2); margin-bottom: 24px;
+  white-space: pre-line;
+}
+.tour-progress {
+  display: flex; gap: 6px; justify-content: center; margin-bottom: 20px;
+}
+.tour-progress-dot {
+  width: 8px; height: 8px; border-radius: 50%;
+  background: var(--border); transition: all 0.2s;
+}
+.tour-progress-dot.active { background: var(--teal); transform: scale(1.3); }
+.tour-progress-dot.done { background: var(--teal2); }
+.tour-actions {
+  display: flex; align-items: center; gap: 8px;
+}
+.tour-skip-btn {
+  background: none; border: none; color: var(--ink3);
+  font-size: 0.82rem; cursor: pointer; padding: 4px 8px;
+}
+.tour-skip-btn:hover { color: var(--ink); text-decoration: underline; }
+@keyframes tourFadeIn { from { opacity: 0; } to { opacity: 1; } }
+@keyframes tourSlideUp { from { transform: translateY(30px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+
 /* ── 스켈레톤 로더 ──────────────────────────────────── */
 .skeleton-loader { padding: 16px; display: flex; flex-direction: column; gap: 12px; }
 .skeleton-line { height: 14px; background: var(--border); border-radius: 4px; animation: skeleton-pulse 1.5s ease-in-out infinite; }

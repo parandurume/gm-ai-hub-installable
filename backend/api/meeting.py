@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+from pathlib import Path
 
 import structlog
 from fastapi import APIRouter, File, HTTPException, UploadFile
@@ -137,9 +138,13 @@ async def create_meeting(req: MeetingRequest):
         "후속조치": req.action_items,
     }
 
-    output = req.output_path or str(
-        settings.WORKING_DIR / f"회의록_{req.title}.hwpx"
-    )
+    if req.output_path:
+        output = req.output_path
+    else:
+        save_dir = await get_setting("meeting_save_dir", "")
+        base_dir = Path(save_dir) if save_dir else settings.WORKING_DIR
+        base_dir.mkdir(parents=True, exist_ok=True)
+        output = str(base_dir / f"회의록_{req.title}.hwpx")
     result = hwpx_service.create_from_template(
         template_name="회의록", fields=fields, output_path=output
     )
@@ -201,9 +206,13 @@ async def stream_meeting(req: MeetingRequest):
             "결정사항": req.decisions,
             "후속조치": req.action_items,
         }
-        output = req.output_path or str(
-            settings.WORKING_DIR / f"회의록_{req.title}.hwpx"
-        )
+        if req.output_path:
+            output = req.output_path
+        else:
+            save_dir = await get_setting("meeting_save_dir", "")
+            base_dir = Path(save_dir) if save_dir else settings.WORKING_DIR
+            base_dir.mkdir(parents=True, exist_ok=True)
+            output = str(base_dir / f"회의록_{req.title}.hwpx")
         result_path = hwpx_service.create_from_template(
             template_name="회의록", fields=fields, output_path=output
         )

@@ -1,6 +1,6 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { fetchJSON, API } from '../utils/api'
+import { fetchJSON, postJSON, API } from '../utils/api'
 import { useToast } from '../hooks/useToast'
 
 export default function RegulationPage() {
@@ -8,8 +8,34 @@ export default function RegulationPage() {
   const [results, setResults] = useState([])
   const [selected, setSelected] = useState(null)
   const [loading, setLoading] = useState(false)
+  const [online, setOnline] = useState(null)
+  const [ocSet, setOcSet] = useState(false)
+  const [ocInput, setOcInput] = useState('')
+  const [source, setSource] = useState(null)
   const toast = useToast()
   const navigate = useNavigate()
+
+  useEffect(() => {
+    fetchJSON(API.regulationStatus)
+      .then(d => { setOnline(d.online); setOcSet(d.oc_set) })
+      .catch(() => setOnline(false))
+  }, [])
+
+  async function handleSetOc(e) {
+    e.preventDefault()
+    if (!ocInput.trim()) return
+    try {
+      await postJSON(API.regulationSetOc, { oc: ocInput.trim() })
+      setOcSet(true)
+      toast('API 키가 설정되었습니다 (이 세션 동안 유효)', 'success')
+      // 상태 재확인
+      fetchJSON(API.regulationStatus)
+        .then(d => { setOnline(d.online); setOcSet(d.oc_set) })
+        .catch(() => {})
+    } catch {
+      toast('API 키 설정 실패', 'error')
+    }
+  }
 
   function handleAskAi() {
     const r = results[selected]
@@ -28,6 +54,7 @@ export default function RegulationPage() {
       const params = new URLSearchParams({ q: query, limit: 20 })
       const data = await fetchJSON(`${API.regulationSearch}?${params}`)
       setResults(data?.results || [])
+      setSource(data?.source || 'offline')
       if ((data?.results || []).length === 0) toast('검색 결과가 없습니다', 'info')
     } catch {
       toast('검색 실패', 'error')
@@ -38,7 +65,39 @@ export default function RegulationPage() {
 
   return (
     <div className="page-regulation">
-      <h2>법령 검색</h2>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4 }}>
+        <h2 style={{ margin: 0 }}>법령 검색</h2>
+        <span className={`badge ${online ? 'badge-success' : 'badge-gray'}`} style={{ fontSize: '0.75rem' }}>
+          {online === null ? '확인 중...' : online ? '온라인' : '오프라인 (로컬 DB)'}
+        </span>
+        {source && (
+          <span className="badge badge-info" style={{ fontSize: '0.7rem' }}>
+            {source === 'online' ? '법제처 API' : '로컬 FTS5'}
+          </span>
+        )}
+      </div>
+
+      {/* OC 입력 안내 — 세션에 OC가 없을 때만 표시 */}
+      {!ocSet && online === false && (
+        <form onSubmit={handleSetOc} className="card" style={{ marginBottom: 16, padding: 16 }}>
+          <div style={{ marginBottom: 8, fontSize: '0.88rem', color: 'var(--ink2)' }}>
+            <strong>법제처 Open API</strong>를 사용하려면 OC 값을 입력하세요.
+            <span style={{ display: 'block', fontSize: '0.78rem', color: 'var(--ink3)', marginTop: 4 }}>
+              OC는 이메일 ID입니다 (예: g4c@korea.kr → g4c). 이 값은 앱 종료 시 자동 삭제됩니다.
+            </span>
+          </div>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <input
+              type="text"
+              value={ocInput}
+              onChange={e => setOcInput(e.target.value)}
+              placeholder="OC 값 입력"
+              style={{ flex: 1 }}
+            />
+            <button className="btn btn-primary" type="submit">설정</button>
+          </div>
+        </form>
+      )}
 
       <form className="search-bar" onSubmit={handleSearch}>
         <input
@@ -54,7 +113,7 @@ export default function RegulationPage() {
       </form>
 
       <div className="split-view" style={{ marginTop: 16 }}>
-        <div className="split-left">
+        <div className="panel">
           {results.length > 0 ? (
             <table className="table">
               <thead>
@@ -84,7 +143,7 @@ export default function RegulationPage() {
             </div>
           )}
         </div>
-        <div className="split-right">
+        <div className="panel">
           {selected !== null && results[selected] ? (
             <div className="preview-pane">
               <div className="preview-header">{results[selected].title || results[selected].law_name}</div>
