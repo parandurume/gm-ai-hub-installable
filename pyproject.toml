@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "gm-ai-hub-app"
-version = "3.5.0"
+version = "3.5.1"
 description = "GM-AI-Hub Desktop - 광명시 AI 통합 공문서 시스템 (설치형)"
 license = {text = "GM-Social-1.0"}
 requires-python = ">=3.11"
