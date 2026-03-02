@@ -97,7 +97,24 @@
 .chat-msg { max-width: 85%; padding: 10px 14px; border-radius: 12px; font-size: 0.9rem; line-height: 1.5; }
 .chat-msg.user { align-self: flex-end; background: var(--teal); color: var(--white); border-bottom-right-radius: 4px; }
 .chat-msg.ai { align-self: flex-start; background: var(--white); border: 1px solid var(--border); border-bottom-left-radius: 4px; }
-.chat-input-bar { display: flex; gap: 8px; padding: 12px; border-top: 1px solid var(--border); background: var(--white); align-items: flex-end; }
+.chat-input-bar { display: flex; flex-direction: column; gap: 8px; padding: 12px; border-top: 1px solid var(--border); background: var(--white); }
+.chat-input-row { display: flex; gap: 8px; align-items: flex-end; width: 100%; }
+.chat-input-row .btn { height: 42px; flex-shrink: 0; }
+
+/* ── 채팅 이미지 첨부 ─────────────────────────────────────── */
+.chat-image-previews { display: flex; gap: 8px; flex-wrap: wrap; }
+.chat-image-preview { position: relative; width: 72px; height: 72px; border-radius: var(--radius-sm); overflow: hidden; border: 1px solid var(--border); flex-shrink: 0; }
+.chat-image-preview img { width: 100%; height: 100%; object-fit: cover; }
+.chat-image-remove { position: absolute; top: 2px; right: 2px; width: 20px; height: 20px; border-radius: 50%; background: rgba(0,0,0,0.55); color: #fff; border: none; cursor: pointer; font-size: 13px; line-height: 20px; padding: 0; display: flex; align-items: center; justify-content: center; }
+.chat-image-remove:hover { background: rgba(200,0,0,0.7); }
+
+/* ── 채팅 메시지 내 이미지 ────────────────────────────────── */
+.chat-message-images { display: flex; gap: 8px; margin: 6px 0; flex-wrap: wrap; }
+.chat-message-image { max-width: 280px; max-height: 200px; border-radius: var(--radius-sm); cursor: pointer; border: 1px solid var(--border); transition: opacity 0.15s; }
+.chat-message-image:hover { opacity: 0.85; }
+
+/* ── 모델 자동전환 안내 ───────────────────────────────────── */
+.chat-model-switch-notice { font-size: 0.78rem; color: var(--teal); background: rgba(0,122,94,0.08); padding: 4px 10px; border-radius: var(--radius-sm); margin-bottom: 6px; }
 
 /* ── Thinking 패널 ──────────────────────────────────────── */
 .thinking-panel { background: var(--paper2); border: 1px solid var(--border); border-radius: var(--radius-sm); margin-bottom: 8px; overflow: hidden; }
@@ -756,11 +773,15 @@
 .char-counter-amber { color: var(--amber); }
 .char-counter-red   { color: var(--red); font-weight: 700; }
 
-/* ── 채팅 입력 래퍼 (텍스트 + 카운터) ────────────────── */
-.chat-input-wrap { flex: 1; position: relative; display: flex; flex-direction: column; }
-.chat-input-wrap textarea { flex: 1; min-height: 42px; max-height: 240px; resize: none; padding: 10px 14px; border: 1px solid var(--border); border-radius: var(--radius-sm); font-family: var(--font-sans); font-size: 0.9rem; overflow-y: auto; }
-.chat-input-wrap textarea:focus { outline: none; border-color: var(--teal); box-shadow: 0 0 0 3px rgba(0,122,94,0.12); }
-.chat-char-counter { align-self: flex-end; font-size: 0.7rem; color: var(--ink3); padding: 2px 2px 0; }
+/* ── 채팅 입력 래퍼 (첨부 버튼 + 텍스트 + 카운터) ────── */
+.chat-input-wrap { flex: 1; position: relative; display: flex; flex-direction: column; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--white); transition: border-color 0.15s, box-shadow 0.15s; }
+.chat-input-wrap:focus-within { border-color: var(--teal); box-shadow: 0 0 0 3px rgba(0,122,94,0.12); }
+.chat-input-wrap textarea { flex: 1; min-height: 42px; max-height: 240px; resize: none; padding: 10px 14px 10px 40px; border: none; border-radius: var(--radius-sm); font-family: var(--font-sans); font-size: 0.9rem; overflow-y: auto; background: transparent; }
+.chat-input-wrap textarea:focus { outline: none; }
+.chat-attach-btn { position: absolute; left: 6px; top: 8px; width: 28px; height: 28px; padding: 0; border: none; background: none; cursor: pointer; font-size: 1.1rem; color: var(--ink3); border-radius: var(--radius-sm); display: flex; align-items: center; justify-content: center; transition: background 0.15s, color 0.15s; z-index: 1; }
+.chat-attach-btn:hover { background: var(--paper2); color: var(--teal); }
+.chat-attach-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.chat-char-counter { align-self: flex-end; font-size: 0.7rem; color: var(--ink3); padding: 0 8px 4px 0; }
 .chat-char-counter.char-counter-amber { color: var(--amber); }
 .chat-char-counter.char-counter-red   { color: var(--red); font-weight: 700; }
 

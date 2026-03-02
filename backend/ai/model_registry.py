@@ -6,6 +6,7 @@ import httpx
 
 from backend.ai.model_profiles import (
     BUILTIN_PROFILES,
+    VISION_FAMILIES,
     ModelProfile,
     detect_family,
     extract_param_size,
@@ -142,6 +143,14 @@ class ModelRegistry:
 
         return result
 
+    def select_vision(self) -> str | None:
+        """설치된 비전 모델 중 가장 큰 것을 반환 (없으면 None)."""
+        candidates = [m for m in self._available if m.supports_vision]
+        if not candidates:
+            return None
+        candidates.sort(key=lambda x: x.param_size, reverse=True)
+        return candidates[0].id
+
     def get_profile(self, model_id: str) -> ModelProfile | None:
         """ID로 프로파일 조회."""
         return self._profiles.get(model_id)
@@ -170,6 +179,7 @@ class ModelRegistry:
             ram_gb=max(4, param) if param else (sibling.ram_gb if sibling else 8),
             supports_thinking=thinking,
             supports_embedding=sibling.supports_embedding if sibling else False,
+            supports_vision=family in VISION_FAMILIES,
             context_len=sibling.context_len if sibling else 32768,
             strengths=sibling.strengths if sibling else [],
             best_for=sibling.best_for if sibling else [],

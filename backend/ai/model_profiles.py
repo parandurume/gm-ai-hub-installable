@@ -10,6 +10,8 @@ FAMILY_PATTERNS: list[tuple[str, str, bool]] = [
     ("gpt-oss", "gpt-oss", False),
     ("qwen3.5", "qwen3.5", True),
     ("qwen3", "qwen3", True),
+    ("qwen2.5-vl", "qwen2.5-vl", False),
+    ("qwen2-vl", "qwen2-vl", False),
     ("exaone4", "exaone", False),
     ("exaone3.5", "exaone", False),
     ("exaone3", "exaone", False),
@@ -17,13 +19,23 @@ FAMILY_PATTERNS: list[tuple[str, str, bool]] = [
     ("deepseek-r1", "deepseek-r1", True),
     ("phi4", "phi4", False),
     ("phi3", "phi3", False),
+    ("llama3.2-vision", "llama3.2-vision", False),
     ("llama3.2", "llama3.2", False),
     ("llama3", "llama3", False),
+    ("llava", "llava", False),
+    ("minicpm-v", "minicpm-v", False),
+    ("moondream", "moondream", False),
     ("hyperclovax", "hyperclovax", False),
     ("gemma", "gemma", False),
     ("mistral", "mistral", False),
     ("nomic-embed", "nomic-embed", False),
 ]
+
+# 비전(이미지 분석) 지원 패밀리
+VISION_FAMILIES: set[str] = {
+    "qwen3.5", "qwen2.5-vl", "qwen2-vl",
+    "llava", "llama3.2-vision", "minicpm-v", "moondream",
+}
 
 
 def detect_family(model_name: str) -> tuple[str, bool]:
@@ -51,6 +63,7 @@ class ModelProfile:
     supports_thinking: bool
     context_len: int
     supports_embedding: bool = False
+    supports_vision: bool = False
     strengths: list[str] = field(default_factory=list)
     best_for: list[str] = field(default_factory=list)
 
@@ -68,6 +81,7 @@ class ModelProfile:
             ram_gb=max(4, param) if param else 8,
             supports_thinking=thinking,
             context_len=32768 if family != "unknown" else 4096,
+            supports_vision=family in VISION_FAMILIES,
             strengths=[],
             best_for=[],
         )
@@ -81,6 +95,7 @@ class ModelProfile:
             "ram_gb": self.ram_gb,
             "supports_thinking": self.supports_thinking,
             "supports_embedding": self.supports_embedding,
+            "supports_vision": self.supports_vision,
             "context_len": self.context_len,
             "strengths": self.strengths,
             "best_for": self.best_for,

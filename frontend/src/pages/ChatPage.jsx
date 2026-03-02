@@ -32,16 +32,20 @@ export default function ChatPage() {
   const [elapsed, setElapsed] = useState(0)
   const [sessions, setSessions] = useState([])
   const [activeSessionId, setActiveSessionId] = useState(null)
+  const [pendingImages, setPendingImages] = useState([])
+  const [uploading, setUploading] = useState(false)
+  const [modelSwitchNotice, setModelSwitchNotice] = useState(null)
   const activeSessionRef = useRef(null)
   const toast = useToast()
   const { setBusy, clearBusy } = useAiBusy()
   const location = useLocation()
-  const { text, thinking, fetchedUrls, isStreaming, sendMessage, stop } = useWebSocket(
+  const { text, thinking, fetchedUrls, modelSwitch, isStreaming, sendMessage, stop } = useWebSocket(
     API.chatStream,
     { onError: (msg) => toast(msg, 'error') },
   )
   const bottomRef = useRef(null)
   const textareaRef = useRef(null)
+  const fileInputRef = useRef(null)
 
   const textRef = useRef(text)
   const thinkingRef = useRef(thinking)
@@ -73,6 +77,12 @@ export default function ChatPage() {
     return () => clearInterval(id)
   }, [isStreaming])
 
+  // Track model auto-switch notice
+  useEffect(() => {
+    if (modelSwitch) setModelSwitchNotice(modelSwitch)
+    if (!isStreaming) setModelSwitchNotice(null)
+  }, [modelSwitch, isStreaming])
+
   // Pre-fill input from location state (e.g. from RegulationPage "AI에게 물어보기")
   useEffect(() => {
     if (location.state?.prefill) {
@@ -96,7 +106,10 @@ export default function ChatPage() {
         // Save user message (last user msg) + assistant message
         const lastUserMsg = messages.findLast?.(m => m.role === 'user')
         if (lastUserMsg) {
-          postJSON(`${API.chatSessions}/${sid}/messages`, { role: 'user', content: lastUserMsg.content }).catch(() => {})
+          postJSON(`${API.chatSessions}/${sid}/messages`, {
+            role: 'user', content: lastUserMsg.content,
+            images: lastUserMsg.image_ids?.length ? lastUserMsg.image_ids : null,
+          }).catch(() => {})
         }
         postJSON(`${API.chatSessions}/${sid}/messages`, {
           role: 'assistant', content: textRef.current, thinking: thinkingRef.current || null,
@@ -109,13 +122,18 @@ export default function ChatPage() {
   async function handleNewSession() {
     setMessages([])
     setActiveSessionId(null)
+    setPendingImages([])
   }
 
   async function loadSession(id) {
     try {
       const data = await fetchJSON(`${API.chatSessions}/${id}/messages`)
-      setMessages((data?.messages || []).map(m => ({ role: m.role, content: m.content, thinking: m.thinking })))
+      setMessages((data?.messages || []).map(m => ({
+        role: m.role, content: m.content, thinking: m.thinking,
+        image_ids: m.image_ids || [],
+      })))
       setActiveSessionId(id)
+      setPendingImages([])
     } catch {
       toast('세션 불러오기 실패', 'error')
     }
@@ -132,18 +150,23 @@ export default function ChatPage() {
     }
   }
 
-  const doSend = useCallback((msg, history) => {
+  const doSend = useCallback((msg, history, imageIds = []) => {
     sendMessage({
       message: msg,
       model,
       reasoning_level: reasoning,
       deep_mode: deepMode,
-      history: history.slice(-10),
+      history: history.slice(-10).map(m => ({
+        role: m.role, content: m.content,
+        image_ids: m.image_ids || [],
+      })),
+      image_ids: imageIds,
     })
   }, [model, reasoning, deepMode, sendMessage])
 
   const handleSend = useCallback(async () => {
-    if (!input.trim() || isStreaming) return
+    const hasImages = pendingImages.length > 0
+    if ((!input.trim() && !hasImages) || isStreaming) return
     // Auto-create session if needed
     if (!activeSessionRef.current) {
       try {
@@ -152,14 +175,16 @@ export default function ChatPage() {
         activeSessionRef.current = s.id
       } catch { /* proceed without session */ }
     }
-    const userMsg = { role: 'user', content: input }
+    const imageIds = pendingImages.map(img => img.id)
+    const userMsg = { role: 'user', content: input, image_ids: imageIds }
     setMessages(m => [...m, userMsg])
-    doSend(input, messages)
+    doSend(input, messages, imageIds)
     setInput('')
+    setPendingImages([])
     // Auto-resize reset
     if (textareaRef.current) textareaRef.current.style.height = 'auto'
     setTimeout(() => textareaRef.current?.focus(), 0)
-  }, [input, isStreaming, messages, doSend, model])
+  }, [input, isStreaming, messages, doSend, model, pendingImages])
 
   const handleRegenerate = useCallback(() => {
     if (isStreaming || messages.length < 2) return
@@ -168,10 +193,10 @@ export default function ChatPage() {
       if (messages[i].role === 'user') { lastUserIdx = i; break }
     }
     if (lastUserIdx < 0) return
-    const lastUserMsg = messages[lastUserIdx].content
+    const lastUser = messages[lastUserIdx]
     const trimmed = messages.slice(0, lastUserIdx + 1)
     setMessages(trimmed)
-    doSend(lastUserMsg, trimmed.slice(0, -1))
+    doSend(lastUser.content, trimmed.slice(0, -1), lastUser.image_ids || [])
   }, [isStreaming, messages, doSend])
 
   function handleKeyDown(e) {
@@ -190,6 +215,46 @@ export default function ChatPage() {
   function handleExampleClick(prompt) {
     setInput(prompt)
     setTimeout(() => textareaRef.current?.focus(), 0)
+  }
+
+  async function handleImageUpload(e) {
+    const files = Array.from(e.target.files || [])
+    if (!files.length) return
+    // Ensure session exists for image upload
+    let sid = activeSessionRef.current
+    if (!sid) {
+      try {
+        const s = await postJSON(API.chatSessions, { title: '', model })
+        setActiveSessionId(s.id)
+        activeSessionRef.current = s.id
+        sid = s.id
+      } catch { return }
+    }
+    setUploading(true)
+    for (const file of files) {
+      if (file.size > 10 * 1024 * 1024) {
+        toast('이미지 크기가 10MB를 초과합니다', 'error')
+        continue
+      }
+      const formData = new FormData()
+      formData.append('file', file)
+      formData.append('session_id', String(sid))
+      try {
+        const res = await fetch(`${API.chat}/upload-image`, { method: 'POST', body: formData })
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({}))
+          throw new Error(err.detail || `HTTP ${res.status}`)
+        }
+        const data = await res.json()
+        const previewUrl = URL.createObjectURL(file)
+        setPendingImages(prev => [...prev, { id: data.image_id, filename: data.filename, previewUrl }])
+      } catch (err) {
+        toast(`이미지 업로드 실패: ${err.message}`, 'error')
+      }
+    }
+    setUploading(false)
+    // Reset file input so same file can be re-selected
+    if (fileInputRef.current) fileInputRef.current.value = ''
   }
 
   async function handleSaveHwpx() {
@@ -329,6 +394,19 @@ export default function ChatPage() {
           return (
             <div key={i} className={`chat-bubble ${msg.role}`}>
               <div className="chat-role">{msg.role === 'user' ? '사용자' : 'AI'}</div>
+              {msg.image_ids?.length > 0 && (
+                <div className="chat-message-images">
+                  {msg.image_ids.map(imgId => (
+                    <img
+                      key={imgId}
+                      src={`${API.chat}/images/${imgId}`}
+                      alt="첨부 이미지"
+                      className="chat-message-image"
+                      onClick={() => window.open(`${API.chat}/images/${imgId}`, '_blank')}
+                    />
+                  ))}
+                </div>
+              )}
               {msg.thinking && <ThinkingPanel content={msg.thinking} />}
               <div className="chat-text markdown-body">
                 {msg.role === 'assistant'
@@ -353,6 +431,9 @@ export default function ChatPage() {
         {isStreaming && (
           <div className="chat-bubble assistant">
             <div className="chat-role">AI</div>
+            {modelSwitchNotice && (
+              <div className="chat-model-switch-notice">Vision 모델 자동 선택: {modelSwitchNotice}</div>
+            )}
             {fetchedUrls.length > 0 && (
               <div className="chat-fetched-urls">
                 {fetchedUrls.map((f, i) => (
@@ -386,25 +467,57 @@ export default function ChatPage() {
       </div>
 
       <div className="chat-input-bar">
-        <div className="chat-input-wrap">
-          <textarea
-            ref={textareaRef}
-            rows={1}
-            value={input}
-            onChange={handleTextareaChange}
-            onKeyDown={handleKeyDown}
-            placeholder="메시지를 입력하세요... (Enter로 전송, Shift+Enter로 줄바꿈)"
-            disabled={isStreaming}
-          />
-          <span className={`chat-char-counter ${input.length >= MAX_INPUT ? 'char-counter-red' : input.length >= MAX_INPUT * 0.8 ? 'char-counter-amber' : ''}`}>
-            {input.length}/{MAX_INPUT}
-          </span>
-        </div>
-        {isStreaming ? (
-          <button className="btn btn-danger" onClick={stop}>중지</button>
-        ) : (
-          <button className="btn btn-primary" onClick={handleSend} disabled={!input.trim()}>전송</button>
+        {pendingImages.length > 0 && (
+          <div className="chat-image-previews">
+            {pendingImages.map((img, i) => (
+              <div key={img.id} className="chat-image-preview">
+                <img src={img.previewUrl} alt={img.filename} />
+                <button
+                  className="chat-image-remove"
+                  onClick={() => setPendingImages(prev => prev.filter((_, idx) => idx !== i))}
+                  title="삭제"
+                >&times;</button>
+              </div>
+            ))}
+          </div>
         )}
+        <div className="chat-input-row">
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/jpeg,image/png,image/gif,image/webp"
+            multiple
+            style={{ display: 'none' }}
+            onChange={handleImageUpload}
+          />
+          <div className="chat-input-wrap">
+            <button
+              className="chat-attach-btn"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={isStreaming || uploading}
+              title="이미지 첨부"
+            >
+              {uploading ? '\u23F3' : '\uD83D\uDCCE'}
+            </button>
+            <textarea
+              ref={textareaRef}
+              rows={1}
+              value={input}
+              onChange={handleTextareaChange}
+              onKeyDown={handleKeyDown}
+              placeholder="메시지를 입력하세요..."
+              disabled={isStreaming}
+            />
+            <span className={`chat-char-counter ${input.length >= MAX_INPUT ? 'char-counter-red' : input.length >= MAX_INPUT * 0.8 ? 'char-counter-amber' : ''}`}>
+              {input.length}/{MAX_INPUT}
+            </span>
+          </div>
+          {isStreaming ? (
+            <button className="btn btn-danger" onClick={stop}>중지</button>
+          ) : (
+            <button className="btn btn-primary" onClick={handleSend} disabled={!input.trim() && pendingImages.length === 0}>전송</button>
+          )}
+        </div>
       </div>
     </div>
   )

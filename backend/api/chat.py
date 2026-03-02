@@ -1,15 +1,17 @@
-"""AI 채팅 API — /api/chat + WebSocket 스트리밍."""
+"""AI 채팅 API — /api/chat + WebSocket 스트리밍 + 이미지 분석."""
 
 from __future__ import annotations
 
+import base64
 import json
 import tempfile
+import uuid
 from datetime import datetime
 from pathlib import Path
 
 import aiosqlite
 import structlog
-from fastapi import APIRouter, WebSocket, WebSocketDisconnect
+from fastapi import APIRouter, File, Form, HTTPException, UploadFile, WebSocket, WebSocketDisconnect
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
 
@@ -18,6 +20,7 @@ from backend.ai.model_registry import ModelRegistry
 from backend.config import settings
 from backend.db.database import get_db, get_setting
 from backend.models.document import ChatMessage
+from backend.paths import chat_images_dir
 from backend.services.web_fetch_service import (
     build_augmented_prompt,
     extract_urls,
@@ -42,8 +45,54 @@ DEEP_MODE_PROMPT = """
 이미 충분한 맥락이 있는 후속 메시지(질문에 대한 답변)라면 바로 4단계로 진행하세요.
 """
 
+MAX_IMAGE_SIZE = 10 * 1024 * 1024  # 10 MB
+ALLOWED_MIME = {"image/jpeg", "image/png", "image/gif", "image/webp"}
+
 _client = GptOssClient(settings.OLLAMA_BASE_URL, settings.OLLAMA_MODEL)
 _registry = ModelRegistry(settings.OLLAMA_BASE_URL)
+
+
+async def _load_image_b64(image_id: str) -> dict | None:
+    """DB에서 이미지 경로 조회 후 base64로 변환."""
+    async with get_db() as db:
+        db.row_factory = aiosqlite.Row
+        async with db.execute(
+            "SELECT file_path, mime_type FROM chat_images WHERE id = ?", (image_id,)
+        ) as cursor:
+            row = await cursor.fetchone()
+    if not row:
+        return None
+    p = Path(row["file_path"])
+    if not p.exists():
+        return None
+    data = p.read_bytes()
+    b64 = base64.b64encode(data).decode()
+    return {"type": "image_url", "image_url": {"url": f"data:{row['mime_type']};base64,{b64}"}}
+
+
+async def _build_vision_content(text: str, image_ids: list[str]) -> list[dict]:
+    """텍스트 + 이미지 ID 목록 → OpenAI vision content 배열."""
+    parts: list[dict] = []
+    if text:
+        parts.append({"type": "text", "text": text})
+    for img_id in image_ids:
+        part = await _load_image_b64(img_id)
+        if part:
+            parts.append(part)
+    return parts
+
+
+async def _expand_images_in_history(context: list[dict]) -> list[dict]:
+    """history 메시지의 image_ids를 base64 content로 변환."""
+    result = []
+    for msg in context:
+        img_ids = msg.get("image_ids") or []
+        if img_ids:
+            parts = await _build_vision_content(msg.get("content", ""), img_ids)
+            result.append({"role": msg["role"], "content": parts if parts else msg.get("content", "")})
+        else:
+            result.append({"role": msg["role"], "content": msg.get("content", "")})
+    return result
 
 
 async def _load_user_context() -> tuple[str, str]:
@@ -94,6 +143,50 @@ async def chat(msg: ChatMessage):
     return {"content": result["content"], "thinking": result["thinking"], "model": result["model"]}
 
 
+@router.post("/upload-image")
+async def upload_image(
+    file: UploadFile = File(...),
+    session_id: int = Form(...),
+):
+    """이미지 업로드 → 디스크 저장 → ID 반환."""
+    if file.content_type not in ALLOWED_MIME:
+        raise HTTPException(400, f"지원하지 않는 이미지 형식: {file.content_type}")
+
+    data = await file.read()
+    if len(data) > MAX_IMAGE_SIZE:
+        raise HTTPException(400, f"이미지 크기 제한 초과 (최대 {MAX_IMAGE_SIZE // 1024 // 1024}MB)")
+
+    image_id = f"img_{uuid.uuid4().hex[:12]}"
+    ext = file.filename.rsplit(".", 1)[-1].lower() if file.filename and "." in file.filename else "jpg"
+    save_path = chat_images_dir() / f"{image_id}.{ext}"
+    save_path.write_bytes(data)
+
+    async with get_db() as db:
+        await db.execute(
+            "INSERT INTO chat_images (id, session_id, filename, mime_type, file_path, size_bytes) "
+            "VALUES (?, ?, ?, ?, ?, ?)",
+            (image_id, session_id, file.filename or "image", file.content_type, str(save_path), len(data)),
+        )
+        await db.commit()
+
+    log.info("이미지 업로드", action="upload_image", image_id=image_id, size=len(data))
+    return {"image_id": image_id, "filename": file.filename, "size_bytes": len(data)}
+
+
+@router.get("/images/{image_id}")
+async def get_image(image_id: str):
+    """저장된 이미지 반환."""
+    async with get_db() as db:
+        db.row_factory = aiosqlite.Row
+        async with db.execute(
+            "SELECT file_path, mime_type, filename FROM chat_images WHERE id = ?", (image_id,)
+        ) as cursor:
+            row = await cursor.fetchone()
+    if not row:
+        raise HTTPException(404, "이미지를 찾을 수 없습니다")
+    return FileResponse(row["file_path"], media_type=row["mime_type"], filename=row["filename"])
+
+
 @router.websocket("/stream")
 async def chat_stream(ws: WebSocket):
     """WebSocket 스트리밍 채팅 (모델 선택 + thinking 분리)."""
@@ -110,12 +203,13 @@ async def chat_stream(ws: WebSocket):
             raw = await ws.receive_text()
             data = json.loads(raw)
 
-            # Frontend sends: message, model, reasoning_level, deep_mode, history
+            # Frontend sends: message, model, reasoning_level, deep_mode, history, image_ids
             content = data.get("message", data.get("content", ""))
             user_model = data.get("model")  # null = auto select
             reasoning = data.get("reasoning_level", data.get("reasoning", "medium"))
             deep_mode = data.get("deep_mode", False)
             context = data.get("history", data.get("context", []))
+            image_ids: list[str] = data.get("image_ids", [])
 
             task = "plan_document" if reasoning == "high" else "draft_body"
 
@@ -131,7 +225,17 @@ async def chat_stream(ws: WebSocket):
                     await ws.send_json({"type": "fetching", "url": page["url"], "status": status})
 
             augmented = build_augmented_prompt(content, fetched_pages)
-            messages = [*context, {"role": "user", "content": augmented}]
+
+            # 이미지가 포함된 경우 vision content 형식으로 변환
+            has_images = bool(image_ids)
+            if has_images:
+                user_content = await _build_vision_content(augmented, image_ids)
+            else:
+                user_content = augmented
+
+            # history에 이미지가 포함된 메시지가 있으면 base64로 확장
+            expanded_context = await _expand_images_in_history(context)
+            messages = [*expanded_context, {"role": "user", "content": user_content}]
 
             # Registry model selection
             await _registry.refresh()
@@ -141,6 +245,22 @@ async def chat_stream(ws: WebSocket):
                 user_override=user_model,
                 reasoning=reasoning,
             )
+
+            # 이미지 첨부 시 비전 모델 자동 전환
+            if has_images:
+                profile = _registry.get_profile(resolved_model)
+                if not profile or not profile.supports_vision:
+                    vision_model = _registry.select_vision()
+                    if vision_model:
+                        resolved_model = vision_model
+                        use_thinking = False
+                        await ws.send_json({"type": "model_switch", "model": vision_model})
+                    else:
+                        await ws.send_json({
+                            "type": "error",
+                            "message": "비전 모델이 설치되어 있지 않습니다. 터미널에서 'ollama pull llava' 등을 실행하세요.",
+                        })
+                        continue
 
             user_ctx, org_name = await _load_user_context()
             system_extra = (DEEP_MODE_PROMPT if deep_mode else "") + user_ctx
@@ -223,6 +343,7 @@ class MessageCreate(BaseModel):
     role: str
     content: str
     thinking: str | None = None
+    images: list[str] | None = None
 
 
 class SessionUpdate(BaseModel):
@@ -268,10 +389,14 @@ async def get_session_messages(session_id: int):
     async with get_db() as db:
         db.row_factory = aiosqlite.Row
         async with db.execute(
-            "SELECT id, role, content, thinking, created_at FROM chat_messages WHERE session_id = ? ORDER BY id",
+            "SELECT id, role, content, thinking, images, created_at FROM chat_messages WHERE session_id = ? ORDER BY id",
             (session_id,),
         ) as cursor:
-            rows = [dict(row) async for row in cursor]
+            rows = []
+            async for row in cursor:
+                d = dict(row)
+                d["image_ids"] = json.loads(d.pop("images")) if d.get("images") else []
+                rows.append(d)
     return {"messages": rows}
 
 
@@ -289,20 +414,29 @@ async def update_session(session_id: int, req: SessionUpdate):
 
 @router.delete("/sessions/{session_id}")
 async def delete_session(session_id: int):
-    """세션 삭제 (CASCADE로 메시지도 삭제)."""
+    """세션 삭제 (CASCADE로 메시지도 삭제) + 이미지 파일 정리."""
     async with get_db() as db:
+        db.row_factory = aiosqlite.Row
+        async with db.execute(
+            "SELECT file_path FROM chat_images WHERE session_id = ?", (session_id,)
+        ) as cursor:
+            paths = [row["file_path"] async for row in cursor]
         await db.execute("DELETE FROM chat_sessions WHERE id = ?", (session_id,))
         await db.commit()
+    # 디스크에서 이미지 파일 삭제
+    for p in paths:
+        Path(p).unlink(missing_ok=True)
     return {"ok": True}
 
 
 @router.post("/sessions/{session_id}/messages")
 async def add_message(session_id: int, req: MessageCreate):
     """메시지 저장 + 세션 updated_at 갱신. 첫 user 메시지면 자동 제목 설정."""
+    images_json = json.dumps(req.images) if req.images else None
     async with get_db() as db:
         await db.execute(
-            "INSERT INTO chat_messages (session_id, role, content, thinking) VALUES (?, ?, ?, ?)",
-            (session_id, req.role, req.content, req.thinking),
+            "INSERT INTO chat_messages (session_id, role, content, thinking, images) VALUES (?, ?, ?, ?, ?)",
+            (session_id, req.role, req.content, req.thinking, images_json),
         )
         # 첫 user 메시지 → 자동 제목
         if req.role == "user":

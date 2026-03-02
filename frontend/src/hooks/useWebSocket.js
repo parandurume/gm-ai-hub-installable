@@ -5,6 +5,7 @@ export function useWebSocket(url, { onError } = {}) {
   const [tokens, setTokens] = useState([])
   const [thinking, setThinking] = useState('')
   const [fetchedUrls, setFetchedUrls] = useState([])
+  const [modelSwitch, setModelSwitch] = useState(null)
   const [isStreaming, setIsStreaming] = useState(false)
   const ws = useRef(null)
   const pendingPayload = useRef(null)
@@ -32,6 +33,8 @@ export function useWebSocket(url, { onError } = {}) {
         setThinking(t => t + data.content)
       } else if (data.type === 'fetching') {
         setFetchedUrls(f => [...f, { url: data.url, status: data.status }])
+      } else if (data.type === 'model_switch') {
+        setModelSwitch(data.model)
       } else if (data.type === 'done') {
         setIsStreaming(false)
       } else if (data.type === 'error') {
@@ -65,6 +68,7 @@ export function useWebSocket(url, { onError } = {}) {
     setTokens([])
     setThinking('')
     setFetchedUrls([])
+    setModelSwitch(null)
     setIsStreaming(true)
 
     if (ws.current?.readyState === WebSocket.OPEN) {
@@ -83,5 +87,5 @@ export function useWebSocket(url, { onError } = {}) {
     setIsStreaming(false)
   }, [])
 
-  return { text: tokens.join(''), thinking, fetchedUrls, isStreaming, sendMessage, stop }
+  return { text: tokens.join(''), thinking, fetchedUrls, modelSwitch, isStreaming, sendMessage, stop }
 }

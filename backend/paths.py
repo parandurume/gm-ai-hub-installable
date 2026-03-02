@@ -108,6 +108,12 @@ def env_file_path() -> Path:
     return app_data_dir() / ".env"
 
 
+def chat_images_dir() -> Path:
+    d = app_data_dir() / "chat_images"
+    d.mkdir(parents=True, exist_ok=True)
+    return d
+
+
 def log_dir() -> Path:
     d = app_data_dir() / "logs"
     d.mkdir(parents=True, exist_ok=True)

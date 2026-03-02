@@ -47,6 +47,7 @@ export default memo(function ModelSelector({ value, onChange }) {
             <div className="model-meta">
               {m.param_size}B · {m.ram_gb}GB
               {m.supports_thinking && ' · \uD83E\uDDE0'}
+              {m.supports_vision && ' · \uD83D\uDC41\uFE0F'}
             </div>
           </button>
         ))}
