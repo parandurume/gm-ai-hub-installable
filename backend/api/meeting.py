@@ -158,6 +158,41 @@ async def create_meeting(req: MeetingRequest):
     }
 
 
+@router.post("/save")
+async def save_meeting(req: MeetingRequest):
+    """이미 생성된 회의록 텍스트를 HWPX로 저장 (AI 재실행 없음)."""
+    fields = {
+        "회의명": req.title,
+        "일시": req.meeting_date,
+        "참석자": req.attendees,
+        "내용": req.content,
+        "장소": req.location,
+        "결정사항": req.decisions,
+        "후속조치": req.action_items,
+    }
+
+    filename = f"회의록_{req.title}.hwpx"
+    if req.output_path:
+        out = Path(req.output_path)
+        # 폴더 경로인 경우 파일명 추가
+        if out.is_dir() or not out.suffix:
+            out.mkdir(parents=True, exist_ok=True)
+            output = str(out / filename)
+        else:
+            output = req.output_path
+    else:
+        save_dir = await get_setting("meeting_save_dir", "")
+        base_dir = Path(save_dir) if save_dir else settings.WORKING_DIR
+        base_dir.mkdir(parents=True, exist_ok=True)
+        output = str(base_dir / filename)
+    result = hwpx_service.create_from_template(
+        template_name="회의록", fields=fields, output_path=output
+    )
+
+    log.info("회의록 저장", action="save_meeting")
+    return {"path": str(result), "success": True}
+
+
 @router.post("/stream")
 async def stream_meeting(req: MeetingRequest):
     """회의록 AI 요약 SSE 스트리밍 + 완료 후 HWPX 생성."""

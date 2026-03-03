@@ -16,6 +16,7 @@ export const API = {
   chatSessions:       `${BASE}/chat/sessions`,
   piiExportReport:    `${BASE}/pii/export-report`,
   meeting:            `${BASE}/meeting/create`,
+  meetingSave:        `${BASE}/meeting/save`,
   meetingStream:      `${BASE}/meeting/stream`,
   meetingTranscribe:  `${BASE}/meeting/transcribe`,
   meetingSttStatus:   `${BASE}/meeting/stt-status`,

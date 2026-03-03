@@ -194,9 +194,23 @@ class HwpxService:
             self._replace_fields_in_hwpx(output, fields)
         else:
             # 템플릿 파일 없으면 내용으로 직접 생성
-            body = fields.get("본문", "")
-            title = fields.get("제목", "")
-            content = f"# {title}\n\n{body}" if title else body
+            body = fields.get("본문", "") or fields.get("내용", "")
+            title = fields.get("제목", "") or fields.get("회의명", "")
+            # 본문/제목 외 메타 필드도 문서에 포함
+            meta_lines = []
+            for key in ("일시", "장소", "참석자", "결정사항", "후속조치"):
+                val = fields.get(key, "")
+                if val:
+                    meta_lines.append(f"{key}: {val}")
+            meta_block = "\n".join(meta_lines)
+            if title and meta_block:
+                content = f"# {title}\n\n{meta_block}\n\n{body}"
+            elif title:
+                content = f"# {title}\n\n{body}"
+            elif meta_block:
+                content = f"{meta_block}\n\n{body}"
+            else:
+                content = body
             self.create(output, content)
 
         return output

@@ -2,7 +2,7 @@
 ; 실행: ISCC installer\gm-ai-hub.iss
 
 #define MyAppName "GM-AI-Hub"
-#define MyAppVersion "1.0.0"
+#define MyAppVersion "1.1.0"
 #define MyAppPublisher "GM-AI-Hub Project"
 #define MyAppURL "http://127.0.0.1:8080"
 #define MyAppExeName "GM-AI-Hub.exe"

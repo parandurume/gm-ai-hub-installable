@@ -85,6 +85,8 @@ export default function MeetingPage() {
   const [savePath, setSavePath] = useState('')
   const [savePickerOpen, setSavePickerOpen] = useState(false)
   const [showSaveOptions, setShowSaveOptions] = useState(false)
+  const [saving, setSaving] = useState(false)
+  const [resavePickerOpen, setResavePickerOpen] = useState(false)
 
   const mediaRef = useRef(null)
   const chunksRef = useRef([])
@@ -271,6 +273,31 @@ export default function MeetingPage() {
     await navigator.clipboard.writeText(result.path)
     setPathCopied(true)
     setTimeout(() => setPathCopied(false), 2000)
+  }
+
+  async function handleSaveHwpx(outputPath) {
+    if (!result?.summary) return
+    setSaving(true)
+    try {
+      const res = await postJSON(API.meetingSave, {
+        title: form.title,
+        date: form.date,
+        attendees: form.attendees,
+        content: result.summary,
+        location: form.location,
+        decisions: form.decisions,
+        action_items: form.action_items,
+        output_path: outputPath || savePath || undefined,
+      })
+      if (res.path) {
+        setResult(prev => ({ ...prev, path: res.path }))
+        toast(`HWPX 저장 완료: ${res.path}`, 'success')
+      }
+    } catch (err) {
+      toast(aiErrorMessage('HWPX 저장', err), 'error')
+    } finally {
+      setSaving(false)
+    }
   }
 
   const busy = recording || transcribing || loading
@@ -473,6 +500,12 @@ export default function MeetingPage() {
               onSelect={path => { setSavePath(path); setSavePickerOpen(false) }}
               mode="folder"
             />
+            <FolderPicker
+              open={resavePickerOpen}
+              onClose={() => setResavePickerOpen(false)}
+              onSelect={path => { setResavePickerOpen(false); handleSaveHwpx(path) }}
+              mode="folder"
+            />
 
             <div className="form-group">
               <label>AI 모델</label>
@@ -533,6 +566,24 @@ export default function MeetingPage() {
                   )}
                 </div>
               </div>
+              {!loading && result && (
+                <div className="meeting-result-actions">
+                  <button
+                    className="btn btn-success"
+                    onClick={() => handleSaveHwpx()}
+                    disabled={saving}
+                  >
+                    {saving ? '저장 중...' : 'HWPX 저장'}
+                  </button>
+                  <button
+                    className="btn btn-secondary"
+                    onClick={() => setResavePickerOpen(true)}
+                    disabled={saving}
+                  >
+                    다른 위치에 저장
+                  </button>
+                </div>
+              )}
             </>
           ) : (
             <>

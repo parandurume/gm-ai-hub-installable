@@ -494,6 +494,11 @@
   text-overflow: ellipsis; white-space: nowrap;
 }
 .meeting-result-text { white-space: pre-wrap; font-size: 0.9rem; line-height: 1.75; color: var(--ink); }
+.meeting-result-actions {
+  display: flex; gap: 8px; padding: 12px 18px;
+  border-top: 1px solid var(--border);
+  flex-shrink: 0;
+}
 
 .meeting-guide { display: flex; flex-direction: column; gap: 22px; padding: 4px 0; }
 .meeting-guide-step { display: flex; gap: 14px; align-items: flex-start; }
