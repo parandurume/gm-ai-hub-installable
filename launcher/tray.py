@@ -79,6 +79,17 @@ _HEALTH_INTERVAL = 5       # 헬스 체크 주기 (초)
 _HEALTH_FAIL_THRESHOLD = 3 # 연속 실패 N회 시 재시작
 
 
+def _log_dir() -> Path:
+    """서버 로그 디렉토리."""
+    local = os.environ.get("LOCALAPPDATA")
+    if local:
+        d = Path(local) / "GM-AI-Hub" / "logs"
+    else:
+        d = Path.home() / ".gm-ai-hub" / "logs"
+    d.mkdir(parents=True, exist_ok=True)
+    return d
+
+
 class TrayApp:
     """시스템 트레이 애플리케이션."""
 
@@ -86,6 +97,7 @@ class TrayApp:
         self._server_proc: subprocess.Popen | None = None
         self._running = False
         self._icon = None
+        self._log_file = None
 
     def _get_server_command(self) -> list[str]:
         """서버 실행 명령어 결정."""
@@ -113,16 +125,24 @@ class TrayApp:
             if sys.platform == "win32":
                 creation_flags = subprocess.CREATE_NO_WINDOW
 
+            # stderr를 로그 파일로 저장 (서버 크래시 진단용)
+            log_path = _log_dir() / "server.log"
+            self._log_file = open(log_path, "w", encoding="utf-8")  # noqa: SIM115
+
             self._server_proc = subprocess.Popen(
                 cmd,
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL,
+                stdout=self._log_file,
+                stderr=self._log_file,
                 creationflags=creation_flags,
             )
             self._running = True
             return True
         except Exception as e:
-            print(f"서버 시작 실패: {e}")
+            try:
+                log_path = _log_dir() / "server.log"
+                log_path.write_text(f"서버 시작 실패: {e}\n", encoding="utf-8")
+            except Exception:
+                pass
             return False
 
     def wait_for_server(self) -> bool:
@@ -147,6 +167,12 @@ class TrayApp:
             except subprocess.TimeoutExpired:
                 self._server_proc.kill()
         self._server_proc = None
+        if self._log_file:
+            try:
+                self._log_file.close()
+            except Exception:
+                pass
+            self._log_file = None
 
     def open_browser(self):
         """기본 브라우저에서 앱 열기."""
@@ -316,9 +342,22 @@ class TrayApp:
                     # 서버 종료 감시 (브라우저 UI의 종료 버튼 대응)
                     threading.Thread(target=self._monitor_server, daemon=True).start()
                 else:
-                    print("서버 시작 대기 시간 초과")
+                    # 서버 프로세스 상태 로그
+                    rc = self._server_proc.poll() if self._server_proc else "N/A"
+                    msg = f"서버 시작 대기 시간 초과 (exit code: {rc})"
+                    try:
+                        log_path = _log_dir() / "server.log"
+                        with open(log_path, "a", encoding="utf-8") as f:
+                            f.write(f"\n{msg}\n")
+                    except Exception:
+                        pass
             else:
-                print("서버 시작 실패")
+                try:
+                    log_path = _log_dir() / "server.log"
+                    with open(log_path, "a", encoding="utf-8") as f:
+                        f.write("서버 프로세스 시작 실패\n")
+                except Exception:
+                    pass
 
         threading.Thread(target=startup, daemon=True).start()
         icon.run()
