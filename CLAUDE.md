@@ -5,7 +5,7 @@
 GM-AI-Hub Desktop is a **local-first AI document system** for Gwangmyeong City Hall (광명시청).
 All AI processing runs on the user's local PC via Ollama — no data leaves the machine.
 
-- **Version**: 3.4.0
+- **Version**: 1.1.0
 - **Language**: Korean (한국어) UI and documents
 - **License**: Internal use only — 광명시청 정보통신과
 
@@ -75,6 +75,15 @@ gm-ai-hub-app/
 - **DB migrations**: Sequential SQL files in `backend/db/migrations/`, tracked in `_migrations` table
 - **Path resolution**: `backend/paths.py` handles both PyInstaller frozen and dev environments
 - **Data directory**: `%LOCALAPPDATA%/GM-AI-Hub/` on Windows
+- **Server logs**: `%LOCALAPPDATA%/GM-AI-Hub/logs/server.log` (tray launcher redirects stdout/stderr)
+- **Tray health monitor**: Auto-restarts server on crash or health-check failure (max 5 retries)
+- **HWPX fallback**: `create_from_template` generates content directly when no `.hwpx` template file exists; supports both `"본문"/"제목"` and `"내용"/"회의명"` field keys
+
+## Deployment Notes
+
+- **Architecture**: The PyInstaller build produces **x64-only** binaries. ARM Windows devices (e.g., Surface Pro X) cannot run the installer; use dev mode (`python -m backend.main`) on ARM.
+- **Build**: `python build/build.py` runs frontend build → tests → PyInstaller → Inno Setup. The build script auto-installs Inno Setup via winget if missing.
+- **Installer version sync**: `build.py` reads version from `pyproject.toml` and patches `installer/gm-ai-hub.iss` automatically.
 
 ## Development
 
@@ -99,6 +108,7 @@ python build/build.py
 | Dashboard | `/` | Dashboard.jsx |
 | Official Document Drafting (기안문) | `/draft` | DraftPage.jsx |
 | Meeting Minutes (회의록) | `/meeting` | MeetingPage.jsx |
+| Meeting Save (HWPX only) | `POST /api/meeting/save` | — |
 | AI Chat | `/chat` | ChatPage.jsx |
 | Complaint Response (민원 답변) | `/complaint` | ComplaintPage.jsx |
 | Regulation Search (법령 검색) | `/regulation` | RegulationPage.jsx |
@@ -127,3 +137,4 @@ python build/build.py
 - Frontend uses `fetchJSON()` and `API` object from `utils/api` for all API calls
 - Pydantic models in `backend/models/` for request/response schemas
 - DSPy pipelines in `backend/ai/pipelines/` for structured AI tasks
+- Meeting page has separate stream (AI generation) and save (HWPX-only) endpoints to avoid re-running the LLM on save
