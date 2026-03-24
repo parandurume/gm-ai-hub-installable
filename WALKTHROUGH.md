@@ -207,8 +207,22 @@ npx vite build
 - Node.js 18+ with npm
 - [Inno Setup 6](https://jrsoftware.org/isinfo.php) (optional, for `.exe` installer)
 
+### Clean Build Environment (Recommended)
+
+Always build from a dedicated virtual environment to avoid bundling unrelated packages
+(torch, tensorflow, scipy, etc.) that slow down PyInstaller and bloat the installer.
+
+```bash
+# Create clean build venv (one-time)
+python -m venv .buildenv
+.buildenv\Scripts\activate
+pip install -e ".[stt,dev]"
+```
+
 ### Full Build
 ```bash
+# Activate build venv first
+.buildenv\Scripts\activate
 python build/build.py
 ```
 

@@ -82,6 +82,10 @@ export default function MeetingPage() {
   const [streamingThinking, setStreamingThinking] = useState('')
   const [sttCached, setSttCached] = useState(null)
   const [sttAvailable, setSttAvailable] = useState(null)
+  const [sttModelPath, setSttModelPath] = useState('')
+  const [sttPathInput, setSttPathInput] = useState('')
+  const [sttPathSaving, setSttPathSaving] = useState(false)
+  const [showSttPathForm, setShowSttPathForm] = useState(false)
   const [savePath, setSavePath] = useState('')
   const [savePickerOpen, setSavePickerOpen] = useState(false)
   const [showSaveOptions, setShowSaveOptions] = useState(false)
@@ -100,6 +104,10 @@ export default function MeetingPage() {
       .then(d => {
         setSttAvailable(d.available !== false)
         setSttCached(d.cached)
+        if (d.model_path) {
+          setSttModelPath(d.model_path)
+          setSttPathInput(d.model_path)
+        }
       })
       .catch(() => {
         setSttAvailable(null)
@@ -114,25 +122,75 @@ export default function MeetingPage() {
     setForm(f => ({ ...f, [key]: val }))
   }
 
+  // ── STT 수동 모델 경로 ───────────────────────────────────────
+  async function handleSttPathSave() {
+    setSttPathSaving(true)
+    try {
+      const res = await postJSON(API.meetingSttModelPath, { path: sttPathInput.trim() })
+      setSttModelPath(res.path || '')
+      setSttCached(res.cached)
+      setShowSttPathForm(false)
+      toast(res.path ? '모델 경로가 설정되었습니다' : '자동 다운로드 모드로 전환되었습니다', 'success')
+    } catch (err) {
+      toast(err.message || '경로 설정 실패', 'error')
+    } finally {
+      setSttPathSaving(false)
+    }
+  }
+
+  async function handleSttPathClear() {
+    setSttPathSaving(true)
+    try {
+      await postJSON(API.meetingSttModelPath, { path: '' })
+      setSttModelPath('')
+      setSttPathInput('')
+      // 상태 다시 확인
+      const d = await fetchJSON(API.meetingSttStatus)
+      setSttCached(d.cached)
+      toast('모델 경로 초기화 (자동 다운로드 모드)', 'success')
+    } catch (err) {
+      toast(err.message || '초기화 실패', 'error')
+    } finally {
+      setSttPathSaving(false)
+    }
+  }
+
   // ── Recording ──────────────────────────────────────────────────
 
   async function startRecording() {
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      toast('이 브라우저에서 마이크를 사용할 수 없습니다. HTTPS 또는 localhost로 접속하세요.', 'error')
+      return
+    }
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
-      const mr = new MediaRecorder(stream, { mimeType: 'audio/webm' })
+      // mimeType 지원 여부 확인 후 fallback
+      const mimeType = MediaRecorder.isTypeSupported('audio/webm') ? 'audio/webm'
+        : MediaRecorder.isTypeSupported('audio/ogg') ? 'audio/ogg'
+        : ''
+      const mr = mimeType ? new MediaRecorder(stream, { mimeType }) : new MediaRecorder(stream)
+      const usedMime = mr.mimeType || 'audio/webm'
       chunksRef.current = []
       mr.ondataavailable = e => { if (e.data.size > 0) chunksRef.current.push(e.data) }
       mr.onstop = () => {
         stream.getTracks().forEach(t => t.stop())
-        handleTranscribe(new Blob(chunksRef.current, { type: 'audio/webm' }))
+        handleTranscribe(new Blob(chunksRef.current, { type: usedMime }))
       }
       mediaRef.current = mr
       mr.start(500)
       setRecording(true)
       setRecordSec(0)
       timerRef.current = setInterval(() => setRecordSec(s => s + 1), 1000)
-    } catch {
-      toast('마이크 접근 권한이 필요합니다', 'error')
+    } catch (err) {
+      if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
+        toast('마이크 접근 권한이 필요합니다. 브라우저 설정에서 마이크를 허용하세요.', 'error')
+      } else if (err.name === 'NotFoundError') {
+        toast('마이크 장치를 찾을 수 없습니다. 마이크가 연결되어 있는지 확인하세요.', 'error')
+      } else if (err.name === 'NotReadableError') {
+        toast('마이크가 다른 프로그램에서 사용 중입니다.', 'error')
+      } else {
+        toast(`녹음 시작 실패: ${err.name || '알 수 없는 오류'} — ${err.message}`, 'error')
+      }
     }
   }
 
@@ -146,7 +204,8 @@ export default function MeetingPage() {
     setTranscribing(true)
     try {
       const fd = new FormData()
-      fd.append('file', blob, 'recording.webm')
+      const ext = (blob.type || '').includes('ogg') ? '.ogg' : (blob.type || '').includes('mp4') ? '.m4a' : '.webm'
+      fd.append('file', blob, `recording${ext}`)
       const res = await fetch(API.meetingTranscribe, { method: 'POST', body: fd })
       if (!res.ok) {
         const err = await res.json().catch(() => ({}))
@@ -374,7 +433,12 @@ export default function MeetingPage() {
               <div className="stt-bar">
                 {sttDisabled ? (
                   <div className="stt-unavailable-banner">
-                    ⚠ 음성 인식 모듈 없음 — 앱을 재설치하세요
+                    <div>⚠ 음성 인식 모듈(faster-whisper)이 설치되지 않았습니다</div>
+                    <div className="stt-install-actions">
+                      <button className="btn btn-primary btn-sm" onClick={() => setShowSttPathForm(v => !v)}>
+                        설치 방법 보기
+                      </button>
+                    </div>
                   </div>
                 ) : transcribing ? (
                   <span className="stt-status-label">
@@ -416,14 +480,107 @@ export default function MeetingPage() {
                       style={{ display: 'none' }}
                       onChange={handleAudioFile}
                     />
-                    {sttCached === false && (
+                    {sttCached === false && !sttModelPath && (
                       <span className="stt-cache-notice">
-                        ⚠ 첫 사용 시 ~1.5 GB 다운로드
+                        ⚠ 첫 사용 시 ~1.5 GB 다운로드{' '}
+                        <button className="btn-link" onClick={() => setShowSttPathForm(v => !v)}>
+                          수동 경로 설정
+                        </button>
+                      </span>
+                    )}
+                    {sttModelPath && (
+                      <span className="stt-cache-notice stt-manual-path-active">
+                        수동 모델: {sttModelPath.split(/[/\\]/).pop()}
                       </span>
                     )}
                   </div>
                 )}
               </div>
+
+              {/* STT 수동 모델 경로 설정 폼 */}
+              {showSttPathForm && (
+                <div className="stt-path-form">
+                  <div className="stt-path-form-header">
+                    <strong>음성 인식(STT) 설치 안내</strong>
+                    <button className="btn btn-icon btn-danger-ghost" onClick={() => setShowSttPathForm(false)}>&times;</button>
+                  </div>
+
+                  {sttDisabled && (
+                    <div className="stt-install-guide">
+                      <div className="stt-install-step">
+                        <span className="stt-step-num">1</span>
+                        <div>
+                          <strong>Python 패키지 설치</strong> (관리자 권한 명령 프롬프트)
+                          <code className="stt-code-block">pip install faster-whisper av</code>
+                        </div>
+                      </div>
+                      <div className="stt-install-step">
+                        <span className="stt-step-num">2</span>
+                        <div>
+                          <strong>앱 재시작</strong> — 설치 후 GM-AI-Hub를 종료하고 다시 실행하세요.
+                        </div>
+                      </div>
+                      <div className="stt-install-divider">
+                        <span>또는 모델을 직접 다운로드</span>
+                      </div>
+                      <div className="stt-install-step">
+                        <span className="stt-step-num">A</span>
+                        <div>
+                          <strong>모델 다운로드</strong> (~1.5 GB)
+                          <br />
+                          <a
+                            href="https://huggingface.co/Systran/faster-whisper-medium/tree/main"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="stt-download-link"
+                          >
+                            Hugging Face에서 faster-whisper-medium 다운로드 &rarr;
+                          </a>
+                          <div className="stt-help-detail">
+                            위 링크에서 모든 파일을 하나의 폴더에 다운로드하세요.
+                            <br />
+                            필수 파일: <code>model.bin</code>, <code>config.json</code>, <code>vocabulary.json</code> 등
+                          </div>
+                        </div>
+                      </div>
+                      <div className="stt-install-step">
+                        <span className="stt-step-num">B</span>
+                        <div>
+                          <strong>아래에 모델 폴더 경로를 입력하세요</strong>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {!sttDisabled && (
+                    <p className="stt-path-help">
+                      자동 다운로드가 안 되는 경우, faster-whisper 모델 폴더를 직접 지정하세요.<br />
+                      모델 폴더 안에 <code>model.bin</code> 파일이 있어야 합니다.
+                    </p>
+                  )}
+
+                  <div className="stt-path-input-row">
+                    <input
+                      type="text"
+                      value={sttPathInput}
+                      onChange={e => setSttPathInput(e.target.value)}
+                      placeholder="예: C:\models\faster-whisper-medium"
+                    />
+                    <button
+                      className="btn btn-primary btn-sm"
+                      onClick={handleSttPathSave}
+                      disabled={sttPathSaving || !sttPathInput.trim()}
+                    >
+                      {sttPathSaving ? '확인 중...' : '적용'}
+                    </button>
+                    {sttModelPath && (
+                      <button className="btn btn-secondary btn-sm" onClick={handleSttPathClear} disabled={sttPathSaving}>
+                        초기화
+                      </button>
+                    )}
+                  </div>
+                </div>
+              )}
 
               <textarea
                 rows={9}

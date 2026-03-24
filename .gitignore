@@ -25,3 +25,5 @@ installer/Output/
 # Claude Code (machine-specific settings and agent memory)
 .claude
 CLAUDE.md
+# 과업지시서
+과업지시서-*.pdf

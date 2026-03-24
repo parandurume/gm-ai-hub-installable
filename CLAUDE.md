@@ -5,7 +5,7 @@
 GM-AI-Hub Desktop is a **local-first AI document system** for Gwangmyeong City Hall (광명시청).
 All AI processing runs on the user's local PC via Ollama — no data leaves the machine.
 
-- **Version**: 1.1.0
+- **Version**: 2.0.0
 - **Language**: Korean (한국어) UI and documents
 - **License**: Internal use only — 광명시청 정보통신과
 
@@ -34,13 +34,14 @@ gm-ai-hub-app/
 │   ├── api/
 │   │   ├── router.py       # Route registration (try/except pattern)
 │   │   ├── health.py, chat.py, draft.py, meeting.py, complaint.py
+│   │   ├── task_order.py      # 과업지시서 생성/저장/검증
 │   │   ├── regulation.py, search.py, pii.py, diff.py
 │   │   ├── settings_api.py, models.py, filesystem.py, samples.py
 │   │   └── setup_wizard.py
 │   ├── ai/
 │   │   ├── client.py        # GptOssClient (Ollama via OpenAI SDK)
 │   │   ├── guards.py        # Content safety guards
-│   │   ├── pipelines/       # DSPy pipelines (draft, meeting, complaint, docent)
+│   │   ├── pipelines/       # DSPy pipelines (draft, meeting, complaint, task_order, docent)
 │   │   ├── signatures/      # DSPy signatures
 │   │   └── optimization/    # Scheduler, metrics
 │   ├── db/
@@ -83,7 +84,9 @@ gm-ai-hub-app/
 
 - **Architecture**: The PyInstaller build produces **x64-only** binaries. ARM Windows devices (e.g., Surface Pro X) cannot run the installer; use dev mode (`python -m backend.main`) on ARM.
 - **Build**: `python build/build.py` runs frontend build → tests → PyInstaller → Inno Setup. The build script auto-installs Inno Setup via winget if missing.
+- **Clean build venv**: Always build from a dedicated venv to avoid bundling unrelated packages (torch, tensorflow, etc.) that bloat the installer and slow down the build. See Development section below.
 - **Installer version sync**: `build.py` reads version from `pyproject.toml` and patches `installer/gm-ai-hub.iss` automatically.
+- **STT (faster-whisper)**: Optional; users can install via `pip install faster-whisper av` or download the model manually from Hugging Face. The meeting page provides in-app installation guide when the module is missing.
 
 ## Development
 
@@ -97,7 +100,10 @@ npm run dev --prefix frontend
 # Run tests
 pytest
 
-# Build installer
+# Build installer (use clean venv to avoid bloat)
+python -m venv .buildenv
+.buildenv\Scripts\activate
+pip install -e ".[stt,dev]"
 python build/build.py
 ```
 
@@ -107,6 +113,7 @@ python build/build.py
 |---------|-------|------|
 | Dashboard | `/` | Dashboard.jsx |
 | Official Document Drafting (기안문) | `/draft` | DraftPage.jsx |
+| Task Order (과업지시서) | `/draft` (tab) | DraftPage.jsx |
 | Meeting Minutes (회의록) | `/meeting` | MeetingPage.jsx |
 | Meeting Save (HWPX only) | `POST /api/meeting/save` | — |
 | AI Chat | `/chat` | ChatPage.jsx |

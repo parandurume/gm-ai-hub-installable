@@ -57,3 +57,24 @@ class SummarizeMeeting(dspy.Signature):
     summary: str = dspy.OutputField(desc="회의 요약")
     decisions: list[str] = dspy.OutputField(desc="결정사항")
     action_items: list[str] = dspy.OutputField(desc="후속조치")
+
+
+class GenerateTaskOrder(dspy.Signature):
+    """과업지시서를 작성한다.
+
+    과업지시서는 지방자치단체에서 용역 사업의 범위·기간·예산·수행 내용을
+    계약상대자에게 지시하는 공식 문서이다.
+    """
+
+    task_name: str = dspy.InputField(desc="과업명")
+    purpose: str = dspy.InputField(desc="과업목적")
+    period: str = dspy.InputField(desc="과업기간")
+    location: str = dspy.InputField(desc="과업장소", default="")
+    budget: str = dspy.InputField(desc="소요예산", default="")
+    scope_items: str = dspy.InputField(desc="과업범위 항목 (쉼표 구분)", default="")
+    details: str = dspy.InputField(desc="추가 지시사항 / 세부내용", default="")
+    current_year: int = dspy.InputField(desc="현재 연도")
+
+    body: str = dspy.OutputField(
+        desc="과업지시서 전문 (1.과업개요, 2.과업수행 세부내용, 3.과업수행에 관한 일반사항)"
+    )

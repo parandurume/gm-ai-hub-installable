@@ -42,6 +42,7 @@ async def stt_status():
     - available: faster-whisper 라이브러리가 설치되어 있는지 여부
     - cached: 모델 가중치가 로컬 캐시에 있어 즉시 사용 가능한지 여부
     - cached=false: 첫 사용 시 ~1.5 GB 다운로드 필요
+    - model_path: 수동 모델 경로 (설정된 경우)
     """
     from backend.services.stt_service import stt_service
 
@@ -51,12 +52,52 @@ async def stt_status():
     except ImportError:
         available = False
 
+    # DB에서 수동 모델 경로 확인 → 서비스에 반영
+    manual_path = (await get_setting("stt_model_path", "")).strip() or None
+    if manual_path:
+        stt_service.set_model_path(manual_path)
+
     return {
         "model": stt_service._model_size,
         "available": available,
         "cached": stt_service.is_model_cached() if available else False,
         "loaded": stt_service._model is not None,
+        "model_path": manual_path,
     }
+
+
+@router.post("/stt-model-path")
+async def set_stt_model_path(body: dict):
+    """수동 STT 모델 경로 설정/해제.
+
+    body: {"path": "C:\\models\\faster-whisper-medium"} 또는 {"path": ""} (해제)
+    """
+    from backend.db.database import get_db
+    from backend.services.stt_service import SttService, stt_service
+
+    path = (body.get("path") or "").strip()
+
+    if path:
+        valid, message = SttService.validate_model_path(path)
+        if not valid:
+            raise HTTPException(status_code=400, detail=message)
+
+    # DB에 저장
+    async with get_db() as db:
+        if path:
+            await db.execute(
+                "INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)",
+                ("stt_model_path", path),
+            )
+        else:
+            await db.execute("DELETE FROM settings WHERE key = ?", ("stt_model_path",))
+
+    # 서비스에 즉시 반영
+    stt_service.set_model_path(path or None)
+    cached = stt_service.is_model_cached()
+
+    log.info("STT 모델 경로 변경", path=path or "(자동)", cached=cached)
+    return {"success": True, "path": path, "cached": cached}
 
 
 @router.post("/transcribe")
@@ -206,52 +247,56 @@ async def stream_meeting(req: MeetingRequest):
     org_name = await get_setting("org_name", "소속기관")
 
     async def stream():
-        summary = req.content  # 내용 짧으면 그대로 사용
-        if len(req.content.strip()) > 100:
-            messages = [
-                {
-                    "role": "user",
-                    "content": (
-                        f"다음 회의 내용을 공문서 형식 회의록으로 정리하세요.\n\n"
-                        f"회의명: {req.title}\n"
-                        f"일시: {req.meeting_date}\n"
-                        f"참석자: {req.attendees}\n\n"
-                        f"내용:\n{req.content}"
-                    ),
-                }
-            ]
-            full_text = ""
-            async for event in _client.stream(
-                messages=messages,
-                task="meeting_minutes",
-                model=resolved,
-                org_name=org_name,
-            ):
-                if event["type"] == "token":
-                    full_text += event["content"]
-                yield f"data: {json.dumps(event, ensure_ascii=False)}\n\n"
-            summary = full_text or req.content
+        try:
+            summary = req.content  # 내용 짧으면 그대로 사용
+            if len(req.content.strip()) > 100:
+                messages = [
+                    {
+                        "role": "user",
+                        "content": (
+                            f"다음 회의 내용을 공문서 형식 회의록으로 정리하세요.\n\n"
+                            f"회의명: {req.title}\n"
+                            f"일시: {req.meeting_date}\n"
+                            f"참석자: {req.attendees}\n\n"
+                            f"내용:\n{req.content}"
+                        ),
+                    }
+                ]
+                full_text = ""
+                async for event in _client.stream(
+                    messages=messages,
+                    task="meeting_minutes",
+                    model=resolved,
+                    org_name=org_name,
+                ):
+                    if event["type"] == "token":
+                        full_text += event["content"]
+                    yield f"data: {json.dumps(event, ensure_ascii=False)}\n\n"
+                summary = full_text or req.content
 
-        fields = {
-            "회의명": req.title,
-            "일시": req.meeting_date,
-            "참석자": req.attendees,
-            "내용": summary,
-            "장소": req.location,
-            "결정사항": req.decisions,
-            "후속조치": req.action_items,
-        }
-        if req.output_path:
-            output = req.output_path
-        else:
-            save_dir = await get_setting("meeting_save_dir", "")
-            base_dir = Path(save_dir) if save_dir else settings.WORKING_DIR
-            base_dir.mkdir(parents=True, exist_ok=True)
-            output = str(base_dir / f"회의록_{req.title}.hwpx")
-        result_path = hwpx_service.create_from_template(
-            template_name="회의록", fields=fields, output_path=output
-        )
-        yield f"data: {json.dumps({'type': 'done', 'path': str(result_path)}, ensure_ascii=False)}\n\n"
+            fields = {
+                "회의명": req.title,
+                "일시": req.meeting_date,
+                "참석자": req.attendees,
+                "내용": summary,
+                "장소": req.location,
+                "결정사항": req.decisions,
+                "후속조치": req.action_items,
+            }
+            if req.output_path:
+                output = req.output_path
+            else:
+                save_dir = await get_setting("meeting_save_dir", "")
+                base_dir = Path(save_dir) if save_dir else settings.WORKING_DIR
+                base_dir.mkdir(parents=True, exist_ok=True)
+                output = str(base_dir / f"회의록_{req.title}.hwpx")
+            result_path = hwpx_service.create_from_template(
+                template_name="회의록", fields=fields, output_path=output
+            )
+            yield f"data: {json.dumps({'type': 'done', 'path': str(result_path)}, ensure_ascii=False)}\n\n"
+        except Exception as exc:
+            log.error("회의록 스트리밍 오류", error=str(exc), error_type=type(exc).__name__)
+            yield f"data: {json.dumps({'type': 'error', 'message': f'회의록 생성 실패: {exc}'}, ensure_ascii=False)}\n\n"
 
     log.info("회의록 스트리밍 생성", action="stream_meeting", model=resolved)
     return StreamingResponse(stream(), media_type="text/event-stream")

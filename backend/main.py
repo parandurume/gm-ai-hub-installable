@@ -53,7 +53,7 @@ log = structlog.get_logger()
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # 시작
-    log.info("GM-AI-Hub 시작", version="2.0.0", env=settings.APP_ENV)
+    log.info("GM-AI-Hub 시작", version="2.0.1", env=settings.APP_ENV)
     settings.ensure_directories()
     await init_db()
 
@@ -73,7 +73,7 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(
     title="GM-AI-Hub API",
-    version="2.0.0",
+    version="2.0.1",
     lifespan=lifespan,
     docs_url="/api/docs" if settings.APP_DEBUG else None,
 )

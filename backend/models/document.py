@@ -149,6 +149,27 @@ class PiiBatchScanBody(BaseModel):
     pii_types: list[str] | None = None
 
 
+class TaskOrderRequest(BaseModel):
+    """과업지시서 AI 생성 요청."""
+
+    task_name: str = Field(..., description="과업명")
+    purpose: str = Field("", description="과업목적")
+    period: str = Field("", description="과업기간 (예: 착수일로부터 2026. 12. 31.까지)")
+    location: str = Field("", description="과업장소")
+    budget: str = Field("", description="소요예산 (예: 금20,000천원)")
+    scope_items: list[str] = Field(default_factory=list, description="과업범위 항목")
+    details: str = Field("", description="추가 지시사항 / 세부내용")
+    model: str | None = None
+
+
+class TaskOrderSaveRequest(BaseModel):
+    """과업지시서 HWPX 저장 요청."""
+
+    task_name: str = Field(..., description="과업명")
+    body: str = Field(..., description="AI 생성 본문")
+    output_path: str | None = None
+
+
 class ChatMessage(BaseModel):
     """채팅 메시지."""
 

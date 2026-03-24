@@ -126,3 +126,41 @@
 - [x] **절전 복귀 후 앱 영구 불능 버그 수정** — `SQLite busy_timeout=5000` + 시작 시 `wal_checkpoint(TRUNCATE)`로 잔여 WAL 파일 정리 (`database.py`)
 - [x] **환경 감지 버그 수정** — `_detect_environment()`에서 삭제된 `laptop_high_ram` 프로필 반환 제거 → RAM ≥32 GB는 `desktop`, 미만은 `laptop` (`config.py`)
 - [x] **법령검색 시드 데이터 구축** — 국가 법령 9종 38조문 (migrations 004~005) + 광명시 자치법규 6종 91조문 (migration 006, PyMuPDF PDF 추출), FTS5 전문 검색 적용
+
+### 과업지시서 (기안문 작성 확장)
+
+> 과업지시서는 주 1회 이상 작성하는 빈도 높은 문서. 기안문 작성 페이지에 문서 유형으로 추가.
+> 샘플 참고: `과업지시서-사회적경제 오픈박스 교육 사업-수정사항 포함.pdf`
+
+#### 과업지시서 문서 구조
+
+| 섹션 | 내용 |
+| ------ | ------ |
+| 1. 과업개요 | 과업명, 과업목적, 과업개요(기간/장소), 과업범위 및 주요내용, 소요예산 |
+| 2. 과업수행 세부내용 | 세부사업별 기획·홍보·운영 계획, 참여대상·인원, 성과물 제출 |
+| 3. 과업수행에 관한 일반사항 | 일반지침(감독관 협의, 점검, 지적소유권 등), 기타사항(전담인력, 착수보고서, 성과물 제출기한) |
+
+#### 백엔드
+
+- [x] 🔴 **과업지시서 DSPy 파이프라인** — `backend/ai/pipelines/task_order_pipeline.py` 신규. 사용자 입력(과업명, 목적, 기간, 예산, 주요내용)으로 3개 섹션 자동 생성. `TASK_REASONING`에 `task_order: "high"` 추가
+- [x] 🔴 **과업지시서 DSPy 시그니처** — `backend/ai/signatures/document_sigs.py`에 `GenerateTaskOrder` 추가. 입력: task_name, purpose, period, location, budget, scope_items, details. 출력: body (과업지시서 전문)
+- [x] 🔴 **과업지시서 API 엔드포인트** — `backend/api/task_order.py` 신규. `POST /api/task-order/generate` (SSE 스트리밍), `POST /api/task-order/save` (HWPX 저장), `POST /api/task-order/validate` (DateGuard+PII). `router.py`에 등록
+- [ ] 🟡 **과업지시서 HWPX 템플릿** — 과업지시서 전용 HWPX 생성 로직. 표지(과업명+연도+부서), 섹션별 번호 매기기, 표 형식 지원
+- [x] 🟡 **과업지시서 Pydantic 모델** — `backend/models/document.py`에 `TaskOrderRequest` / `TaskOrderSaveRequest` 추가
+
+#### 프론트엔드
+
+- [x] 🔴 **DraftPage 문서 유형 선택 UI** — DraftPage 상단에 문서 유형 탭 추가 (기안문 / 과업지시서). 선택에 따라 입력 폼 전환
+- [x] 🔴 **과업지시서 입력 폼** — 과업명, 과업목적(textarea), 과업기간/과업장소(2-column), 소요예산, 과업범위(동적 항목 추가/삭제 ScopeItems 컴포넌트), 추가 지시사항(textarea)
+- [x] 🟡 **과업지시서 미리보기** — 생성된 과업지시서를 미리보기. 인라인 편집 + DateGuard/PII 검증 지원 (기존 DraftPage 패턴 재사용)
+- [x] 🟡 **과업지시서 저장/다운로드** — HWPX 저장 버튼 (기존 draft save 패턴 재사용)
+
+### faster-whisper 설치 실패 대응
+
+> faster-whisper (ctranslate2) 설치 시 빌드 도구 또는 호환성 문제로 실패하는 경우가 있음.
+> 모델 다운로드 실패 시 수동 설치 가이드 및 폴백 경로 필요.
+
+- [x] 🔴 **STT 모델 수동 설치 경로** — MeetingPage STT 바에 "수동 경로 설정" UI 추가. `POST /api/meeting/stt-model-path`로 경로 저장/검증. `stt_service.py`에서 수동 경로 로드 지원 (`model.bin` 유효성 검사)
+- [x] 🟡 **STT 모델 다운로드 실패 시 안내 UI** — STT 모듈 없음 배너에 "수동 설치" 링크 추가, 모델 미캐시 시 "수동 경로 설정" 버튼 표시. 경로 입력 폼에 안내 텍스트 포함
+- [ ] 🟡 **faster-whisper 선택적 설치** — `pip install` 시 faster-whisper 실패해도 앱 전체가 중단되지 않도록 try/except import 처리 확인. STT 미사용 시 정상 동작 보장
+- [ ] 🔵 **STT 설치 가이드 문서** — 수동 설치 절차 안내 (Python wheel 직접 다운로드, ctranslate2 DLL 수동 복사 등)

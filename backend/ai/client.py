@@ -31,6 +31,7 @@ TASK_REASONING: dict[str, ReasoningLevel] = {
     "plan_document": "high",
     "budget_calc": "high",
     "docent_plan": "high",
+    "task_order": "high",
 }
 
 SYSTEM_PROMPT_BASE = """당신은 대한민국 지방자치단체 공문서 작성 및 지역사회 분석을 지원하는 전문 AI입니다.

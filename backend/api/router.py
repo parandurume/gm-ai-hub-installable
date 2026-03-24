@@ -98,3 +98,9 @@ def register_routes(app: FastAPI) -> None:
         app.include_router(samples_router)
     except ImportError:
         pass
+
+    try:
+        from backend.api.task_order import router as task_order_router
+        app.include_router(task_order_router)
+    except ImportError:
+        pass

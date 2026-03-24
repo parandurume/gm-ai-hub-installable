@@ -461,9 +461,46 @@
 .stt-buttons { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
 .stt-cache-notice { font-size: 0.75rem; color: var(--amber); font-weight: 500; }
 .stt-unavailable-banner {
-  padding: 7px 12px; background: rgba(192,57,43,0.07);
+  padding: 10px 14px; background: rgba(192,57,43,0.07);
   border: 1px solid rgba(192,57,43,0.2); border-radius: var(--radius-sm);
   font-size: 0.82rem; color: var(--red); margin-bottom: 6px;
+}
+.stt-install-actions { margin-top: 8px; }
+.stt-install-guide {
+  margin: 8px 0 12px; font-size: 0.8rem; color: var(--ink2); line-height: 1.6;
+}
+.stt-install-step {
+  display: flex; gap: 10px; align-items: flex-start; margin-bottom: 10px;
+}
+.stt-step-num {
+  flex-shrink: 0; width: 22px; height: 22px;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--teal); color: #fff; border-radius: 50%;
+  font-size: 0.72rem; font-weight: 700;
+}
+.stt-code-block {
+  display: block; margin: 5px 0 2px; padding: 6px 10px;
+  background: var(--ink1, #1a1a2e); color: #e0e0e0;
+  border-radius: var(--radius-sm); font-family: var(--font-mono, monospace);
+  font-size: 0.78rem; -webkit-user-select: all; user-select: all; word-break: break-all;
+}
+.stt-download-link {
+  display: inline-block; margin-top: 4px;
+  color: var(--teal); font-weight: 600; text-decoration: underline;
+}
+.stt-download-link:hover { color: var(--teal-dark, #005f4a); }
+.stt-help-detail {
+  margin-top: 4px; font-size: 0.75rem; color: var(--ink3); line-height: 1.5;
+}
+.stt-help-detail code {
+  background: rgba(0,0,0,0.06); padding: 1px 4px; border-radius: 3px; font-size: 0.85em;
+}
+.stt-install-divider {
+  display: flex; align-items: center; gap: 12px;
+  margin: 12px 0; font-size: 0.75rem; color: var(--ink3); font-weight: 600;
+}
+.stt-install-divider::before, .stt-install-divider::after {
+  content: ''; flex: 1; border-top: 1px solid var(--border);
 }
 .stt-recording-active { display: flex; align-items: center; gap: 8px; }
 .stt-rec-dot { color: #dc2626; font-size: 0.85rem; animation: pulse 1s ease-in-out infinite; }
@@ -472,6 +509,35 @@
   color: #dc2626; font-weight: 600; min-width: 42px;
 }
 .stt-status-label { display: inline-flex; align-items: center; gap: 8px; font-size: 0.82rem; color: var(--teal); }
+.stt-manual-path-active { color: var(--teal); }
+.btn-link {
+  background: none; border: none; color: var(--teal); cursor: pointer;
+  text-decoration: underline; font-size: inherit; padding: 0;
+  font-family: var(--font-sans);
+}
+.btn-link:hover { color: var(--teal-dark, #005f4a); }
+.stt-path-form {
+  margin-bottom: 10px; padding: 10px 12px;
+  background: var(--paper); border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+.stt-path-form-header {
+  display: flex; justify-content: space-between; align-items: center;
+  margin-bottom: 6px;
+}
+.stt-path-form-header strong { font-size: 0.85rem; }
+.stt-path-help {
+  font-size: 0.78rem; color: var(--ink3); margin: 0 0 8px;
+  line-height: 1.5;
+}
+.stt-path-help code {
+  background: rgba(0,0,0,0.06); padding: 1px 4px; border-radius: 3px;
+  font-size: 0.85em;
+}
+.stt-path-input-row {
+  display: flex; gap: 6px; align-items: center;
+}
+.stt-path-input-row input { flex: 1; font-size: 0.82rem; }
 
 .meeting-details-section { margin-bottom: 14px; }
 .meeting-details-toggle {
@@ -892,6 +958,48 @@
 }
 .template-card-icon { font-size: 1.3rem; }
 .template-card-label { text-align: center; line-height: 1.2; }
+
+/* ── 문서 유형 탭 ──────────────────────────────────── */
+.doc-type-tabs {
+  display: flex; gap: 6px; margin-bottom: 14px;
+}
+.doc-type-tab {
+  display: flex; align-items: center; gap: 6px;
+  padding: 8px 18px; border: 2px solid var(--border);
+  border-radius: var(--radius-sm); background: var(--white);
+  cursor: pointer; font-family: var(--font-sans); font-size: 0.85rem;
+  color: var(--ink2); transition: all 0.15s; font-weight: 500;
+}
+.doc-type-tab:hover { border-color: var(--teal); color: var(--teal); }
+.doc-type-tab.active {
+  border-color: var(--teal); background: rgba(0,122,94,0.08);
+  color: var(--teal); font-weight: 600;
+}
+.doc-type-tab-icon { font-size: 1.1rem; }
+
+/* ── 과업지시서 폼 ─────────────────────────────────── */
+.form-row-2col {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 12px;
+}
+@media (max-width: 600px) {
+  .form-row-2col { grid-template-columns: 1fr; }
+}
+.scope-items { display: flex; flex-direction: column; gap: 6px; }
+.scope-item-row {
+  display: flex; align-items: center; gap: 6px;
+}
+.scope-item-row input { flex: 1; }
+.scope-item-label {
+  min-width: 22px; font-size: 0.8rem; color: var(--ink3);
+  font-weight: 600; text-align: right;
+}
+.btn-icon { padding: 4px 8px; font-size: 1rem; line-height: 1; }
+.btn-danger-ghost {
+  background: transparent; border: 1px solid transparent;
+  color: var(--ink3); cursor: pointer; border-radius: var(--radius-sm);
+  transition: all 0.15s;
+}
+.btn-danger-ghost:hover { color: #dc3545; border-color: #dc354544; }
 
 /* ── 참석자 태그 입력 ──────────────────────────────── */
 .attendees-tag-input {

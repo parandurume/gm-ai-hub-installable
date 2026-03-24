@@ -62,7 +62,7 @@ export default memo(function Sidebar({ open, onClose }) {
         설정
       </NavLink>
 
-      <div className="sidebar-footer">v3.0.0</div>
+      <div className="sidebar-footer">v2.0.1</div>
     </nav>
   )
 })

@@ -21,6 +21,7 @@ ENVIRONMENT_DEFAULTS: dict[str, dict[str, str]] = {
         "plan_document": "gpt-oss:20b",
         "budget_calc": "gpt-oss:20b",
         "docent_plan": "gpt-oss:20b",
+        "task_order": "gpt-oss:20b",
     },
     "laptop": {
         "default": "qwen3:14b",
@@ -31,6 +32,7 @@ ENVIRONMENT_DEFAULTS: dict[str, dict[str, str]] = {
         "budget_calc": "qwen3:14b",
         "docent_plan": "qwen3:14b",
         "complaint_resp": "qwen3:14b",
+        "task_order": "qwen3:14b",
     },
     "desktop": {
         "default": "qwen3:14b",
@@ -43,6 +45,7 @@ ENVIRONMENT_DEFAULTS: dict[str, dict[str, str]] = {
         "complaint_resp": "qwen3:14b",
         "meeting_minutes": "qwen3:14b",
         "incoming_doc": "joonoh/HyperCLOVAX-SEED-Text-Instruct-1.5B",
+        "task_order": "qwen3:14b",
     },
 }
 
