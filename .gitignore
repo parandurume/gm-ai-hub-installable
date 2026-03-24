@@ -11,6 +11,8 @@ frontend/dist/
 backend/ai/optimization/optimized/
 *.egg-info/
 dist/
+build_tmp/
+.buildenv/
 build/output/
 .pytest_cache/
 .ruff_cache/
